@@ -184,10 +184,6 @@ export interface LensProps {
   irregular?: number
   brightness?: number
   rippleSeed?: number
-  showLobe?: boolean
-  lobeOffset?: [number, number, number]
-  lobePalette?: string[]
-  lobeAccent?: string
   lambda?: number
   geometrySeed?: number
   showParticles?: boolean
@@ -214,10 +210,6 @@ export function Lens({
   irregular = 0.03,
   brightness = 0,
   rippleSeed = 0,
-  showLobe = false,
-  lobeOffset = [1.1, -0.5, 0.7],
-  lobePalette,
-  lobeAccent = '#ff7a45',
   lambda = 2.2,
   geometrySeed = 1,
   showParticles = true,
@@ -242,11 +234,6 @@ export function Lens({
       impulse.current = 1
     }
   }, [rippleSeed])
-
-  const lobeGroup = useRef<THREE.Group>(null!)
-  const lobeRim = useMemo(() => makeGlowMaterial(lobeAccent, rimFrag, 2.0), [])
-  const lobeGeometry = useMemo(() => makeLensGeometry(0.1, geometrySeed + 7), [geometrySeed])
-  const lobeShown = useRef(0)
 
   const tintTarget = useMemo(() => new THREE.Color(), [])
   const attenTarget = useMemo(() => new THREE.Color(), [])
@@ -313,15 +300,6 @@ export function Lens({
       6,
       dt,
     )
-
-    const targetLobe = showLobe ? 1 : 0
-    lobeShown.current = damp(lobeShown.current, targetLobe, 3.5, dt)
-    if (lobeGroup.current) {
-      const ls = 0.0001 + lobeShown.current * 0.66
-      lobeGroup.current.scale.setScalar(ls)
-      lobeGroup.current.visible = lobeShown.current > 0.02
-      lobeRim.uniforms.uIntensity.value = 1.9 * lobeShown.current
-    }
   })
 
   return (
@@ -357,25 +335,6 @@ export function Lens({
           <primitive object={rimMat} attach="material" />
         </mesh>
         {showParticles && <InnerParticles palette={palette} />}
-      </group>
-
-      {/* warm split lobe */}
-      <group ref={lobeGroup} position={lobeOffset} visible={false}>
-        <mesh geometry={lobeGeometry}>
-          <meshStandardMaterial
-            color={(lobePalette ?? ['#3a0d08'])[0]}
-            emissive={lobeAccent}
-            emissiveIntensity={0.8}
-            roughness={0.32}
-            metalness={0.1}
-            transparent
-            opacity={0.85}
-          />
-        </mesh>
-        <mesh geometry={lobeGeometry} scale={1.06}>
-          <primitive object={lobeRim} attach="material" />
-        </mesh>
-        <InnerParticles palette={lobePalette ?? ['#F05A28', '#E0A326']} radius={0.42} count={55} />
       </group>
     </group>
   )
