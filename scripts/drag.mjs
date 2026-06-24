@@ -24,15 +24,12 @@ await page.waitForTimeout(200)
 await page.screenshot({ path: '.preview/drag-mid.png' })
 await page.mouse.up()
 
-// staged "liquid drop" (~4.2s): land → sit (~1s) → tile rides to border → stretch+move → settle.
+// staged "liquid drop" (~3.75s): land → sit (~1s) → whole bubble stretches+moves → settle.
 await page.waitForTimeout(600) // ~sit: new tile landed, bubble parked, no stretch
 await page.screenshot({ path: '.preview/drag-sit.png' })
 const sitPhase = await page.evaluate(() => window.tasteStore.getState().absorbPhase)
 
-await page.waitForTimeout(700) // ~lead: driver tile riding out to the border
-await page.screenshot({ path: '.preview/drag-lead.png' })
-
-await page.waitForTimeout(1300) // ~mid-migrate: peak teardrop stretch, body travelling
+await page.waitForTimeout(1700) // ~mid-migrate: peak teardrop stretch, body travelling
 const migA = await page.evaluate(() => window.tasteStore.getState())
 await page.screenshot({ path: '.preview/drag-migrate.png' })
 

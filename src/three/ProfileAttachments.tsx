@@ -58,7 +58,6 @@ export function ProfileAttachments({
           palette={palette}
           containerRadius={containerRadius}
           emphasis={emphasis}
-          isUser={isUser}
         />
       ))}
     </group>

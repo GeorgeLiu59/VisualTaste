@@ -3,7 +3,6 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { getAsset, type Asset } from '../data/tasteData'
 import { useTasteStore } from '../store/tasteStore'
-import { useUserMorphStore } from '../store/userMorphStore'
 import { AssetVisual, assetSize } from './AssetVisual'
 
 export interface AssetAttachmentProps {
@@ -15,8 +14,6 @@ export interface AssetAttachmentProps {
   containerRadius: number
   /** Visual prominence: 1 for the user's references, lower for anchors. */
   emphasis?: number
-  /** Whether this tile belongs to the user lens (can lead the drop tip). */
-  isUser?: boolean
 }
 
 const GOLDEN = Math.PI * (3 - Math.sqrt(5))
@@ -27,7 +24,6 @@ export function AssetAttachment({
   total,
   containerRadius,
   emphasis = 1,
-  isUser = false,
 }: AssetAttachmentProps) {
   const holder = useRef<THREE.Group>(null!)
 
@@ -61,7 +57,6 @@ export function AssetAttachment({
   const camY = useRef(new THREE.Vector3())
   const camZ = useRef(new THREE.Vector3())
   const out = useRef(new THREE.Vector3())
-  const pullW = useRef(new THREE.Vector3())
 
   useFrame((state, dt) => {
     if (!holder.current) return
@@ -88,27 +83,6 @@ export function AssetAttachment({
       .addScaledVector(camX.current, lift)
       .addScaledVector(camY.current, rise)
       .addScaledVector(camZ.current, depth)
-
-    // The driver reference (the one that caused the beat) rides OUT to the
-    // border in the exact direction the body is about to travel (driverAxis,
-    // projected onto the camera plane) by driverLead, then eases back into the
-    // cluster as the drop rounds out. One smooth ramp — no lunge envelope.
-    if (isUser) {
-      const morph = useUserMorphStore.getState()
-      if (morph.active && morph.driverId === asset.id && morph.driverLead > 0.001) {
-        const ax = morph.driverAxis
-        pullW.current.set(ax[0], ax[1], ax[2])
-        const sx = pullW.current.dot(camX.current)
-        const sy = pullW.current.dot(camY.current)
-        const sz = pullW.current.dot(camZ.current) * 0.5
-        // ride to roughly the bubble border (≈ containerRadius along the axis)
-        const lead = morph.driverLead * containerRadius * 1.15
-        out.current
-          .addScaledVector(camX.current, sx * lead)
-          .addScaledVector(camY.current, sy * lead)
-          .addScaledVector(camZ.current, sz * lead)
-      }
-    }
 
     holder.current.position.copy(out.current)
 
