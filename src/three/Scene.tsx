@@ -82,14 +82,20 @@ function SceneContent() {
 
   const leansNolan = user.position.y > 0.2 && user.position.x < 0.05
   const userStretch: [number, number, number] =
-    user.shape === 'split' ? [1.06, 1.0, 1.06] : leansNolan ? [0.92, 1.18, 0.92] : [1, 1, 1]
+    user.shape === 'split' ? [1.06, 1.0, 1.06] : leansNolan ? [0.97, 1.1, 0.97] : [1, 1, 1]
 
-  const NOLAN_SCALE = 1.35
-  const TARANTINO_SCALE = 1.22
+  // Anchor lenses share a consistent shape language: gently-rounded ellipsoids
+  // that only *hint* at personality (Nolan a touch portrait, Tarantino a touch
+  // landscape) with a closely-matched, subtle surface irregularity — rather
+  // than the old tall-skinny-vs-lumpy-blob contrast.
+  const NOLAN_SCALE = 1.3
+  const TARANTINO_SCALE = 1.26
+  const NOLAN_STRETCH: [number, number, number] = [0.97, 1.1, 0.97]
+  const TARANTINO_STRETCH: [number, number, number] = [1.08, 0.95, 1.08]
   const minStretch = (s: [number, number, number]) => Math.min(s[0], s[1], s[2])
   const userContainer = userScale * minStretch(userStretch) * 0.92
-  const nolanContainer = NOLAN_SCALE * 0.82 * 0.92
-  const tarantinoContainer = TARANTINO_SCALE * 0.92 * 0.92
+  const nolanContainer = NOLAN_SCALE * minStretch(NOLAN_STRETCH) * 0.92
+  const tarantinoContainer = TARANTINO_SCALE * minStretch(TARANTINO_STRETCH) * 0.92
 
   const showLobe = user.shape === 'split' && !isUnfold
   const lobeDir = new THREE.Vector3(
@@ -135,8 +141,8 @@ function SceneContent() {
         palette={nolanProfile.palette}
         accent="#8fb4e6"
         scale={NOLAN_SCALE}
-        stretch={[0.82, 1.32, 0.82]}
-        irregular={0.025}
+        stretch={NOLAN_STRETCH}
+        irregular={0.04}
         geometrySeed={2}
       />
       <ProfileAttachments
@@ -153,8 +159,8 @@ function SceneContent() {
         palette={tarantinoProfile.palette}
         accent="#ff7a45"
         scale={TARANTINO_SCALE}
-        stretch={[1.06, 0.92, 1.06]}
-        irregular={0.13}
+        stretch={TARANTINO_STRETCH}
+        irregular={0.06}
         geometrySeed={5}
       />
       <ProfileAttachments
