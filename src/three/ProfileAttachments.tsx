@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { Asset } from '../data/tasteData'
 import { damp } from '../lib/taste'
+import { useUserMorphStore } from '../store/userMorphStore'
 import { AssetAttachment } from './AssetAttachment'
 
 export interface ProfileAttachmentsProps {
@@ -13,6 +14,8 @@ export interface ProfileAttachmentsProps {
   containerRadius: number
   lambda?: number
   emphasis?: number
+  /** User instance: follow the eased morph position so tiles track the lens body. */
+  isUser?: boolean
 }
 
 export function ProfileAttachments({
@@ -22,11 +25,19 @@ export function ProfileAttachments({
   containerRadius,
   lambda = 2.2,
   emphasis = 1,
+  isUser = false,
 }: ProfileAttachmentsProps) {
   const group = useRef<THREE.Group>(null!)
   useFrame((_, dt) => {
     const g = group.current
     if (!g) return
+    // During an absorb morph the user cluster snaps to the same eased world
+    // position the lens body uses, so references never lag behind the glass.
+    const morph = isUser ? useUserMorphStore.getState() : null
+    if (morph?.active) {
+      g.position.set(morph.pos[0], morph.pos[1], morph.pos[2])
+      return
+    }
     g.position.x = damp(g.position.x, center[0], lambda, dt)
     g.position.y = damp(g.position.y, center[1], lambda, dt)
     g.position.z = damp(g.position.z, center[2], lambda, dt)

@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useTasteStore } from '../store/tasteStore'
 import { useCameraStore } from '../store/cameraStore'
+import { useUserMorphStore } from '../store/userMorphStore'
 import { deriveUserProfile, toWorld } from '../lib/taste'
 import { nolanProfile, tarantinoProfile } from '../data/tasteData'
 
@@ -12,7 +13,11 @@ const Y = new THREE.Vector3(0, 1, 0)
 function baseFraming(): { pos: V3; look: V3; lambda: number } {
   const { mode, compareTarget, activeAssetIds } = useTasteStore.getState()
   const user = deriveUserProfile(activeAssetIds)
-  const userW = toWorld(user.position)
+  // During an absorb morph, frame the SAME eased position the lens body uses so
+  // the camera tracks it in lockstep (otherwise it would chase the final
+  // derived position and desync from the slow-moving lens).
+  const morph = useUserMorphStore.getState()
+  const userW: V3 = morph.active ? morph.pos : toWorld(user.position)
 
   if (mode === 'unfold') {
     return { pos: [userW[0], userW[1] + 0.3, userW[2] + 9.5], look: userW, lambda: 1.8 }

@@ -2,6 +2,7 @@ import { Title } from './Title'
 import { ModeControls } from './ModeControls'
 import { SimilarityBadge } from './SimilarityBadge'
 import { MicroLabel } from './MicroLabel'
+import { AbsorbHUD } from './AbsorbHUD'
 import { FinalLine } from './FinalLine'
 import { WalkthroughControls } from './WalkthroughControls'
 import { ReferenceTray } from './ReferenceTray'
@@ -21,6 +22,7 @@ export function Overlay() {
       </div>
 
       <MicroLabel />
+      <AbsorbHUD />
       <FinalLine />
       <Hint />
 

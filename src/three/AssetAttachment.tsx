@@ -32,7 +32,7 @@ export function AssetAttachment({
     const n = Math.max(total, 1)
     const rNorm = n === 1 ? 0 : Math.sqrt((index + 0.5) / n)
     const ang = index * GOLDEN
-    const maxR = containerRadius * 0.52
+    const maxR = containerRadius * 0.49
     const x2d = Math.cos(ang) * rNorm * maxR
     const y2d = Math.sin(ang) * rNorm * maxR
     const bobPhase = index * 1.7
@@ -64,8 +64,10 @@ export function AssetAttachment({
 
     const lift = x2d + Math.sin(t * 0.5 + swayPhase) * containerRadius * 0.015
     const rise = y2d + Math.cos(t * 0.45 + bobPhase) * containerRadius * 0.015
-    // push toward the camera so tiles sit in front of the glass surface (crisp, unrefracted)
-    const depth = containerRadius * (1.12 + (isHovered ? 0.12 : 0)) + Math.sin(t * 0.4 + bobPhase) * containerRadius * 0.02
+    // push toward the camera so tiles sit in front of the glass surface; 1.16
+    // keeps them readable (and clear of the silhouette under the nolan-lean
+    // stretch) while still letting the glass edge refract their corners
+    const depth = containerRadius * (1.16 + (isHovered ? 0.13 : 0)) + Math.sin(t * 0.4 + bobPhase) * containerRadius * 0.02
 
     out.current
       .set(0, 0, 0)

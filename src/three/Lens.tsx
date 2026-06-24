@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { MeshTransmissionMaterial } from '@react-three/drei'
 import * as THREE from 'three'
-import { damp } from '../lib/taste'
+import { clamp, damp } from '../lib/taste'
+import { useUserMorphStore } from '../store/userMorphStore'
 
 // ---------------------------------------------------------------------------
 // Shared assets (created once)
@@ -191,6 +192,14 @@ export interface LensProps {
   geometrySeed?: number
   showParticles?: boolean
   opacity?: number
+  /** 0..1 — how much the lens holds reference tiles; dials the rim down so tiles read. */
+  tilePresence?: number
+  /**
+   * Marks this as the user's lens. When true the lens reads the userMorphStore
+   * each frame: during an absorb morph it sits on the already-eased world
+   * position (instead of its own damp) so body, tiles, and camera stay locked.
+   */
+  isUser?: boolean
 }
 
 export function Lens({
@@ -210,6 +219,8 @@ export function Lens({
   geometrySeed = 1,
   showParticles = true,
   opacity = 1,
+  tilePresence = 0,
+  isUser = false,
 }: LensProps) {
   const group = useRef<THREE.Group>(null!)
   const inner = useRef<THREE.Group>(null!)
@@ -245,18 +256,31 @@ export function Lens({
   useFrame((state, dt) => {
     const g = group.current
     if (!g) return
-    const k = 1 - Math.exp(-lambda * dt)
-    g.position.x = damp(g.position.x, position[0], lambda, dt)
-    g.position.y = damp(g.position.y, position[1], lambda, dt)
-    g.position.z = damp(g.position.z, position[2], lambda, dt)
+    // During an absorb morph the AbsorbDirector writes an already-eased world
+    // position into userMorphStore; the user lens sits on it exactly instead of
+    // running its own damp, keeping the lens body, its reference tiles, and the
+    // camera in lockstep (anchors never morph).
+    const morph = isUser ? useUserMorphStore.getState() : null
+    const morphing = morph?.active === true
+    const k = morphing ? clamp(morph!.e) : 1 - Math.exp(-lambda * dt)
+    if (morphing) {
+      g.position.set(morph!.pos[0], morph!.pos[1], morph!.pos[2])
+    } else {
+      g.position.x = damp(g.position.x, position[0], lambda, dt)
+      g.position.y = damp(g.position.y, position[1], lambda, dt)
+      g.position.z = damp(g.position.z, position[2], lambda, dt)
+    }
 
     impulse.current *= Math.exp(-3.5 * dt)
     const breathe = 1 + Math.sin(state.clock.elapsedTime * 0.5 + geometrySeed) * 0.018
     const pulse = 1 + impulse.current * 0.14
     const s = scale * breathe * pulse
-    g.scale.x = damp(g.scale.x, s * stretch[0], 6, dt)
-    g.scale.y = damp(g.scale.y, s * stretch[1], 6, dt)
-    g.scale.z = damp(g.scale.z, s * stretch[2], 6, dt)
+    // ease scale alongside position during morph so a count-driven scale change
+    // doesn't pop when the pending asset commits; otherwise damp as before.
+    const scaleLambda = morphing ? 9 : 6
+    g.scale.x = damp(g.scale.x, s * stretch[0], scaleLambda, dt)
+    g.scale.y = damp(g.scale.y, s * stretch[1], scaleLambda, dt)
+    g.scale.z = damp(g.scale.z, s * stretch[2], scaleLambda, dt)
 
     if (inner.current) {
       inner.current.rotation.y += dt * 0.05
@@ -269,9 +293,13 @@ export function Lens({
     }
     ;(rimMat.uniforms.uColor.value as THREE.Color).lerp(accentTarget, k)
     ;(coreMat.uniforms.uColor.value as THREE.Color).lerp(accentTarget, k)
+    // When the lens holds reference tiles, dial the silhouette rim down so its
+    // additive glow stops washing over the tiles; the core glow (behind the
+    // tiles) carries the luminous body instead. Empty lens + anchors keep 1.7.
+    const rimDial = 1 - 0.3 * clamp(tilePresence)
     rimMat.uniforms.uIntensity.value = damp(
       rimMat.uniforms.uIntensity.value,
-      (1.7 + brightness * 1.9 + impulse.current * 1.6) * opacity,
+      (1.7 * rimDial + brightness * 1.9 + impulse.current * 1.6 * rimDial) * opacity,
       6,
       dt,
     )
@@ -295,7 +323,7 @@ export function Lens({
   return (
     <group ref={group} position={position}>
       <group ref={inner}>
-        <mesh geometry={geometry}>
+        <mesh geometry={geometry} renderOrder={0}>
           <MeshTransmissionMaterial
             ref={mtmRef as never}
             samples={8}
@@ -317,11 +345,11 @@ export function Lens({
           />
         </mesh>
         {/* inner core glow */}
-        <mesh geometry={geometry} scale={0.9}>
+        <mesh geometry={geometry} scale={0.9} renderOrder={1}>
           <primitive object={coreMat} attach="material" />
         </mesh>
         {/* fresnel rim */}
-        <mesh geometry={geometry} scale={1.035}>
+        <mesh geometry={geometry} scale={1.035} renderOrder={2}>
           <primitive object={rimMat} attach="material" />
         </mesh>
         {showParticles && <InnerParticles palette={palette} />}

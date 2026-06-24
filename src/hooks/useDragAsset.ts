@@ -18,7 +18,7 @@ const TRAY_ZONE = 188
  */
 export function useDragAsset() {
   const [drag, setDrag] = useState<DragState | null>(null)
-  const addAsset = useTasteStore((s) => s.addAsset)
+  const beginAbsorb = useTasteStore((s) => s.beginAbsorb)
   const toggleAsset = useTasteStore((s) => s.toggleAsset)
   const setDragging = useTasteStore((s) => s.setDragging)
 
@@ -37,7 +37,7 @@ export function useDragAsset() {
           return
         }
         const droppedInScene = y < window.innerHeight - TRAY_ZONE
-        if (droppedInScene && !isActive) addAsset(id)
+        if (droppedInScene && !isActive) beginAbsorb(id)
         return
       }
 
