@@ -6,6 +6,8 @@ import type { AssetType } from '../data/tasteData'
 
 type V3 = [number, number, number]
 
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
+
 export const curveColorFor = (type: AssetType, palette: string[]): string => {
   if (type === 'text') return '#b9a8ff'
   if (type === 'palette') return palette[1] ?? '#ffd29a'
@@ -25,6 +27,9 @@ export interface InfluenceCurveProps {
   end?: V3
   /** Dynamic mode: return [start, end] each frame (local space). */
   compute?: () => [V3, V3]
+  /** Dynamic strength: return 0..1 each frame (overrides `strength`) — lets a
+   *  caller fade/retract the curve per-frame without React re-renders. */
+  dynamicStrength?: () => number
   color: string
   strength: number
   hovered?: boolean
@@ -35,6 +40,7 @@ export function InfluenceCurve({
   start = [0, 0, 0],
   end = [0, 0, 0],
   compute,
+  dynamicStrength,
   color,
   strength,
   hovered = false,
@@ -49,16 +55,17 @@ export function InfluenceCurve({
       const [s, e] = compute()
       line.setPoints(s, e, midpoint(s, e))
     }
+    const str = dynamicStrength ? dynamicStrength() : strength
     const mat = line.material as THREE.Material & {
       dashOffset?: number
       linewidth?: number
       opacity: number
     }
     if (mat.dashOffset !== undefined) mat.dashOffset -= dt * flow
-    const targetWidth = (0.7 + strength * 1.5) * (hovered ? 2.1 : 1)
+    const targetWidth = (0.7 + str * 1.5) * (hovered ? 2.1 : 1)
     if (mat.linewidth !== undefined) mat.linewidth += (targetWidth - mat.linewidth) * 0.1
-    const targetOpacity = hovered ? 0.92 : 0.22 + strength * 0.4
-    mat.opacity += (targetOpacity - mat.opacity) * 0.1
+    const targetOpacity = hovered ? 0.92 : (0.22 + str * 0.4) * clamp01(str * 4)
+    mat.opacity += (targetOpacity - mat.opacity) * 0.12
   })
 
   return (

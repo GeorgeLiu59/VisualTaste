@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Environment, Lightformer } from '@react-three/drei'
 import {
@@ -34,6 +34,8 @@ import { OverlapField } from './OverlapField'
 import { UnfoldView } from './UnfoldView'
 import { AxisLabels } from './AxisLabels'
 import { CameraRig } from './CameraRig'
+import { AbsorbDirector } from './AbsorbDirector'
+import { ConstellationReveal } from './ConstellationReveal'
 
 const lerpTaste = (a: Vec3, b: Vec3, t: number): Vec3 => ({
   x: a.x + (b.x - a.x) * t,
@@ -179,6 +181,8 @@ function SceneContent() {
         lobeAccent="#ff7a45"
         brightness={userBrightness}
         showParticles={count > 0 && !isUnfold}
+        tilePresence={count > 0 && !isUnfold ? 1 : 0}
+        isUser
       />
       {!isUnfold && (
         <ProfileAttachments
@@ -186,6 +190,7 @@ function SceneContent() {
           assets={activeAssets}
           palette={user.palette}
           containerRadius={userContainer}
+          isUser
         />
       )}
 
@@ -199,12 +204,21 @@ function SceneContent() {
         similarity={compareSimilarity}
       />
 
+      <ConstellationReveal />
+
       <CameraRig />
     </>
   )
 }
 
 export function Scene() {
+  // Shared, mutable cinematic state the AbsorbDirector drives each frame:
+  // the DOF focus point (DepthOfField reads this Vector3 every frame) and the
+  // Bloom effect (for the transient intensity dip). Mutated in place → no React
+  // re-renders of the 3D tree.
+  const focusVec = useRef(new THREE.Vector3(0.5, 0.95, 0.2)).current
+  const bloomRef = useRef<{ intensity: number } | null>(null)
+
   return (
     <Canvas
       className="!fixed inset-0"
@@ -220,6 +234,7 @@ export function Scene() {
       <fogExp2 attach="fog" args={['#070809', 0.014]} />
 
       <SceneContent />
+      <AbsorbDirector focusVec={focusVec} bloomRef={bloomRef} />
 
       <Environment resolution={256} background={false}>
         <group rotation={[0, 0, 0]}>
@@ -262,11 +277,12 @@ export function Scene() {
       </Environment>
 
       <EffectComposer enableNormalPass={false}>
-        <DepthOfField target={[0.5, 0.95, 0.2]} focalLength={0.008} bokehScale={0.9} height={480} />
+        <DepthOfField target={focusVec} focalLength={0.008} bokehScale={0.9} height={480} />
         <Bloom
+          ref={bloomRef as never}
           mipmapBlur
           intensity={0.95}
-          luminanceThreshold={0.18}
+          luminanceThreshold={0.2}
           luminanceSmoothing={0.5}
           radius={0.72}
         />
