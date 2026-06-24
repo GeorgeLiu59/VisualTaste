@@ -95,6 +95,50 @@ export function computeProfilePosition(activeAssets: Asset[]): Vec3 {
   }
 }
 
+/**
+ * Minimum taste-space distance the user lens keeps from each anchor center.
+ * ~0.7 → ~3.5 world units between centers, so the (large) user lens approaches
+ * Nolan/Tarantino but always stays visibly *in front of* it, never merging in.
+ */
+const ANCHOR_KEEPOUT = 0.7
+
+/**
+ * Push a user-lens taste position out of any anchor's keep-out sphere so the
+ * lens moves *toward* an anchor but never *into* it (which made it impossible to
+ * tell where "you" is). This only affects the rendered position — similarity is
+ * still computed from the true, unclamped position, so affinity still reads high
+ * for an aligned taste.
+ */
+export function clampAwayFromAnchors(p: Vec3): Vec3 {
+  let out = p
+  for (const anchor of [nolanProfile.position, tarantinoProfile.position]) {
+    const dx = out.x - anchor.x
+    const dy = out.y - anchor.y
+    const dz = out.z - anchor.z
+    const d = Math.sqrt(dx * dx + dy * dy + dz * dz)
+    if (d >= ANCHOR_KEEPOUT) continue
+    // direction away from the anchor; if essentially coincident, fall back to
+    // the direction from the anchor toward the neutral origin.
+    let nx: number, ny: number, nz: number
+    if (d > 1e-3) {
+      nx = dx / d
+      ny = dy / d
+      nz = dz / d
+    } else {
+      const al = Math.hypot(anchor.x, anchor.y, anchor.z) || 1
+      nx = -anchor.x / al
+      ny = -anchor.y / al
+      nz = -anchor.z / al
+    }
+    out = {
+      x: anchor.x + nx * ANCHOR_KEEPOUT,
+      y: anchor.y + ny * ANCHOR_KEEPOUT,
+      z: anchor.z + nz * ANCHOR_KEEPOUT,
+    }
+  }
+  return out
+}
+
 export function computePalette(activeAssets: Asset[]): string[] {
   if (activeAssets.length === 0) return DEFAULT_PALETTE
   const blended = activeAssets
@@ -157,14 +201,21 @@ export function computeCoolBodyCenter(activeAssets: Asset[]): Vec3 | null {
 export interface DerivedUserProfile extends Profile {
   tags: string[]
   shape: LensShape
+  /** True weighted-average taste position (used for similarity). */
+  position: Vec3
+  /** Render position: clamped out of anchor keep-out spheres so the lens never
+   *  visually merges into Nolan/Tarantino. Use this for placing the lens. */
+  displayPosition: Vec3
 }
 
 export function deriveUserProfile(activeAssetIds: string[]): DerivedUserProfile {
   const activeAssets = activeAssetIds.map(getAsset)
   const tags = Array.from(new Set(activeAssets.flatMap((a) => a.tags)))
+  const position = computeProfilePosition(activeAssets)
   return {
     ...userProfileInitial,
-    position: computeProfilePosition(activeAssets),
+    position,
+    displayPosition: clampAwayFromAnchors(position),
     palette: computePalette(activeAssets),
     assets: activeAssetIds,
     tags,

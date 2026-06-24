@@ -17,7 +17,7 @@ function baseFraming(): { pos: V3; look: V3; lambda: number } {
   // the camera tracks it in lockstep (otherwise it would chase the final
   // derived position and desync from the slow-moving lens).
   const morph = useUserMorphStore.getState()
-  const userW: V3 = morph.active ? morph.pos : toWorld(user.position)
+  const userW: V3 = morph.active ? morph.pos : toWorld(user.displayPosition)
 
   if (mode === 'unfold') {
     return { pos: [userW[0], userW[1] + 0.3, userW[2] + 9.5], look: userW, lambda: 1.8 }
