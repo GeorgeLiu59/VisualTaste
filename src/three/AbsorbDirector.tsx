@@ -4,27 +4,25 @@ import * as THREE from 'three'
 import { useTasteStore } from '../store/tasteStore'
 import { useCameraStore } from '../store/cameraStore'
 import { useUserMorphStore } from '../store/userMorphStore'
+import { usePullStore, type ActivePull } from '../store/pullStore'
 import { clamp, damp, deriveUserProfile, toWorld } from '../lib/taste'
-import { getAsset, nolanProfile, tarantinoProfile } from '../data/tasteData'
+import { getAsset } from '../data/tasteData'
 
 type V3 = [number, number, number]
 
 // ---------------------------------------------------------------------------
-// Absorb beat timing (ms), driven off a single frame clock (absorbStartedAt).
-//   rack    0 .. 600      present the reference, rack focus onto it
-//   survey  600 .. 2000   reveal + compare the whole taste-space (held)
-//   commit  @2000         fold pending into the profile, capture morph endpoints
-//   migrate 2000 .. 4400  slow eased lens migration — long enough to read the
-//                         lens travel, recolor, and reshape as it happens
-//   settle  4400 .. 4750  fx/camera ease back, then release
+// "Pull chorus" beat timing (ms), off a single frame clock (absorbStartedAt).
+//   rack     0 .. RACK_MS            acknowledge; bubble held at old centroid
+//   indicate RACK_MS .. COMMIT_AT    each ref lunges in turn (dynamic length)
+//   commit   @COMMIT_AT              latch: (remove) filter set, capture endpoints
+//   migrate  COMMIT_AT .. +MIGRATE   slow eased move to the new resultant
+//   settle   .. +SETTLE              release
+// COMMIT_AT is DYNAMIC: it depends on how many refs indicate (see below).
 // ---------------------------------------------------------------------------
-const RACK_MS = 600
-const SURVEY_MS = 1400
+const RACK_MS = 350
+const PER_ASSET_MS = 560 // one ref's lunge window
 const MIGRATE_MS = 2400
 const SETTLE_MS = 350
-const COMMIT_AT = RACK_MS + SURVEY_MS // 2000
-const MIGRATE_END = COMMIT_AT + MIGRATE_MS // 4400
-const TOTAL_MS = MIGRATE_END + SETTLE_MS // 4750
 
 /** Resting DOF focus point (matches the original static target). */
 const STATIC_FOCUS: V3 = [0.5, 0.95, 0.2]
@@ -32,6 +30,8 @@ const STATIC_FOCUS: V3 = [0.5, 0.95, 0.2]
 const CAM_OFF: V3 = [0.2, 0.95, 18.3]
 
 const easeInOutCubic = (p: number) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2)
+/** Lunge envelope: fast out, slow return, no overshoot. Peaks ~40% in. */
+const lungeEnv = (tau: number) => Math.sin(Math.PI * Math.pow(clamp(tau), 0.7))
 
 export interface AbsorbDirectorProps {
   /** Shared DOF focus point — mutated in place; DepthOfField reads it each frame. */
@@ -57,11 +57,15 @@ export function AbsorbDirector({ focusVec, bloomRef }: AbsorbDirectorProps) {
   const morphTarget = useRef(new THREE.Vector3())
   const desired = useRef(new THREE.Vector3(...STATIC_FOCUS))
   const eased = useRef(new THREE.Vector3())
+  // reused scratch
+  const center = useRef(new THREE.Vector3())
+  const pull = useRef(new THREE.Vector3())
+  const leanAcc = useRef(new THREE.Vector3())
 
   useFrame((_, dt) => {
     const st = useTasteStore.getState()
-    const { absorbPhase, pendingAssetId, absorbStartedAt } = st
-    const active = absorbPhase !== 'idle' && absorbStartedAt != null && pendingAssetId != null
+    const { absorbPhase, absorbStartedAt, indicateOrder, indicateStride, heldCenterW } = st
+    const active = absorbPhase !== 'idle' && absorbStartedAt != null && heldCenterW != null
 
     // Defaults (idle): resting focus, default fx, no camera override.
     desired.current.set(STATIC_FOCUS[0], STATIC_FOCUS[1], STATIC_FOCUS[2])
@@ -77,46 +81,73 @@ export function AbsorbDirector({ focusVec, bloomRef }: AbsorbDirectorProps) {
         committed.current = false
       }
 
-      const pending = getAsset(pendingAssetId!)
-      const pendingW = toWorld(pending.position)
-      const nolanW = toWorld(nolanProfile.position)
-      const taraW = toWorld(tarantinoProfile.position)
-      const userOldW = toWorld(deriveUserProfile(st.activeAssetIds).displayPosition)
-      // In Build mode the anchors + pending node aren't rendered, so the camera
-      // stays on the user lens (a simple rack + slow morph). The full
-      // constellation framing only applies in Compare mode.
-      const compare = st.mode === 'compare'
+      const N = Math.max(indicateOrder.length, 1)
+      const heldW = heldCenterW!
+      center.current.set(heldW[0], heldW[1], heldW[2])
+      // dynamic chorus length: last lunge starts at (N-1)*stride, lasts PER_ASSET
+      const indicateDur = (N - 1) * indicateStride + PER_ASSET_MS
+      const COMMIT_AT = RACK_MS + indicateDur
+      const TOTAL_MS = COMMIT_AT + MIGRATE_MS + SETTLE_MS
 
-      if (elapsed < RACK_MS) {
-        if (absorbPhase !== 'rack') st.setAbsorbPhase('rack')
-        // Compare: rack focus onto the incoming reference at its true coordinate.
-        // Build: just hold on the user lens.
-        if (compare) desired.current.set(pendingW[0], pendingW[1], pendingW[2])
-        else desired.current.set(userOldW[0], userOldW[1], userOldW[2])
-        targetExposure = 1.25
-        targetBloom = 0.8
-      } else if (elapsed < COMMIT_AT) {
-        if (absorbPhase !== 'survey') st.setAbsorbPhase('survey')
-        if (compare) {
-          // hold on the whole-constellation centroid (the comparison beat)
-          desired.current.set(
-            (userOldW[0] + pendingW[0] + nolanW[0] + taraW[0]) / 4,
-            (userOldW[1] + pendingW[1] + nolanW[1] + taraW[1]) / 4,
-            (userOldW[2] + pendingW[2] + nolanW[2] + taraW[2]) / 4,
-          )
-        } else {
-          desired.current.set(userOldW[0], userOldW[1], userOldW[2])
+      if (elapsed < COMMIT_AT) {
+        // ---- RACK + INDICATE: bubble held; references lunge one at a time ----
+        if (elapsed < RACK_MS) {
+          if (absorbPhase !== 'rack') st.setAbsorbPhase('rack')
+        } else if (absorbPhase !== 'indicate') {
+          st.setAbsorbPhase('indicate')
         }
+
+        // hold the body at the old centroid (e=0: no tint cross-fade yet)
+        useUserMorphStore.getState().setMorph(true, heldW, 0)
+
+        // compute which refs are live this frame + accumulate the body lean
+        const tIndicate = elapsed - RACK_MS
+        const pulls: ActivePull[] = []
+        leanAcc.current.set(0, 0, 0)
+        let leanColor: string | null = null
+        let dominant = -1
+        for (let k = 0; k < N; k++) {
+          const id = indicateOrder[k]
+          const tau = (tIndicate - k * indicateStride) / PER_ASSET_MS
+          if (tau < 0 || tau > 1) continue
+          const asset = getAsset(id)
+          const weight = clamp((asset.strength - 0.3) / 0.7)
+          const releasing = st.releasingAssetId === id
+          pulls.push({ id, tau, weight, releasing })
+          // body lean toward this puller (real world offset, not projected)
+          const A = lungeEnv(tau) * (releasing ? -0.5 : 1)
+          const tW = toWorld(asset.position)
+          pull.current.set(tW[0] - heldW[0], tW[1] - heldW[1], tW[2] - heldW[2])
+          if (pull.current.lengthSq() > 1e-6) pull.current.normalize()
+          const kLean = (0.05 + 0.12 * weight) * A
+          leanAcc.current.addScaledVector(pull.current, kLean)
+          if (A > dominant) {
+            dominant = A
+            leanColor = asset.palette[0] ?? null
+          }
+        }
+        usePullStore.getState().setActivePulls(pulls)
+        useUserMorphStore
+          .getState()
+          .setLean([leanAcc.current.x, leanAcc.current.y, leanAcc.current.z], leanColor)
+
+        // camera stays calmly on the held lens (the lean is a body micro-motion)
+        desired.current.copy(center.current)
         targetExposure = 1.22
-        targetBloom = 0.82
+        targetBloom = 0.85
       } else {
-        // ---- COMMIT (once): fold pending in, capture eased endpoints ----
+        // ---- COMMIT (once): latch the mutation, capture eased endpoints ----
         if (!committed.current) {
           committed.current = true
-          morphStart.current.set(userOldW[0], userOldW[1], userOldW[2])
-          st.commitAbsorb() // appends pending → new derived profile
-          const newW = toWorld(deriveUserProfile(useTasteStore.getState().activeAssetIds).displayPosition)
+          morphStart.current.set(heldW[0], heldW[1], heldW[2])
+          st.commitAbsorb() // remove: filters the set → new derived profile
+          const newW = toWorld(
+            deriveUserProfile(useTasteStore.getState().activeAssetIds).displayPosition,
+          )
           morphTarget.current.set(newW[0], newW[1], newW[2])
+          // chorus over: clear lunges + lean before the body starts moving
+          usePullStore.getState().setActivePulls([])
+          useUserMorphStore.getState().setLean([0, 0, 0], null)
         }
         // ---- MIGRATE: one eased clock drives the shared user position ----
         const p = clamp((elapsed - COMMIT_AT) / MIGRATE_MS)
@@ -126,11 +157,10 @@ export function AbsorbDirector({ focusVec, bloomRef }: AbsorbDirectorProps) {
           .getState()
           .setMorph(true, [eased.current.x, eased.current.y, eased.current.z], e)
         desired.current.copy(eased.current) // focus tracks the migrating lens
-        // exposure/bloom already easing back to defaults here
 
         if (elapsed >= TOTAL_MS) {
-          useUserMorphStore.getState().clear()
-          st.endAbsorb()
+          usePullStore.getState().setActivePulls([])
+          st.endAbsorb() // also clears userMorphStore
           useCameraStore.getState().setGoal(null)
           startRef.current = null
         }
@@ -138,8 +168,8 @@ export function AbsorbDirector({ focusVec, bloomRef }: AbsorbDirectorProps) {
 
       // Gentle camera goal: frame `desired` at the reused build offset, with a
       // small dolly per phase. CameraRig damps toward this (no aggressive cuts).
-      const dolly = absorbPhase === 'survey' ? 1.06 : absorbPhase === 'rack' ? 0.94 : 1.0
-      const lambda = absorbPhase === 'survey' ? 0.85 : absorbPhase === 'rack' ? 1.3 : 1.0
+      const dolly = absorbPhase === 'indicate' ? 1.04 : absorbPhase === 'rack' ? 0.96 : 1.0
+      const lambda = absorbPhase === 'indicate' ? 0.9 : absorbPhase === 'rack' ? 1.3 : 1.0
       useCameraStore.getState().setGoal({
         pos: [desired.current.x + CAM_OFF[0], desired.current.y + CAM_OFF[1], desired.current.z + CAM_OFF[2] * dolly],
         look: [desired.current.x, desired.current.y, desired.current.z],

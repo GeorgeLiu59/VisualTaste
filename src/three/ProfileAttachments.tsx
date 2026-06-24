@@ -35,7 +35,9 @@ export function ProfileAttachments({
     // position the lens body uses, so references never lag behind the glass.
     const morph = isUser ? useUserMorphStore.getState() : null
     if (morph?.active) {
-      g.position.set(morph.pos[0], morph.pos[1], morph.pos[2])
+      // include the body lean so the tile cluster tips with the glass
+      const ln = morph.lean
+      g.position.set(morph.pos[0] + ln[0], morph.pos[1] + ln[1], morph.pos[2] + ln[2])
       return
     }
     g.position.x = damp(g.position.x, center[0], lambda, dt)
@@ -53,6 +55,7 @@ export function ProfileAttachments({
           palette={palette}
           containerRadius={containerRadius}
           emphasis={emphasis}
+          isUser={isUser}
         />
       ))}
     </group>

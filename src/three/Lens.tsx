@@ -4,24 +4,7 @@ import { MeshTransmissionMaterial } from '@react-three/drei'
 import * as THREE from 'three'
 import { clamp, damp } from '../lib/taste'
 import { useUserMorphStore } from '../store/userMorphStore'
-
-// ---------------------------------------------------------------------------
-// Shared assets (created once)
-// ---------------------------------------------------------------------------
-
-const softDot = (() => {
-  const c = document.createElement('canvas')
-  c.width = c.height = 64
-  const ctx = c.getContext('2d')!
-  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
-  g.addColorStop(0, 'rgba(255,255,255,1)')
-  g.addColorStop(0.35, 'rgba(255,255,255,0.7)')
-  g.addColorStop(1, 'rgba(255,255,255,0)')
-  ctx.fillStyle = g
-  ctx.fillRect(0, 0, 64, 64)
-  const tex = new THREE.CanvasTexture(c)
-  return tex
-})()
+import { softDot } from './softDot'
 
 function makeLensGeometry(irregularity: number, seed: number) {
   const geo = new THREE.SphereGeometry(1, 110, 110)
@@ -238,6 +221,7 @@ export function Lens({
   const tintTarget = useMemo(() => new THREE.Color(), [])
   const attenTarget = useMemo(() => new THREE.Color(), [])
   const accentTarget = useMemo(() => new THREE.Color(), [])
+  const leanTint = useMemo(() => new THREE.Color(), [])
   useEffect(() => {
     tintTarget.set(palette[4] ?? palette[palette.length - 1] ?? '#e7ecf3')
     attenTarget.set(palette[2] ?? palette[1] ?? '#9aa6b3')
@@ -255,7 +239,10 @@ export function Lens({
     const morphing = morph?.active === true
     const k = morphing ? clamp(morph!.e) : 1 - Math.exp(-lambda * dt)
     if (morphing) {
-      g.position.set(morph!.pos[0], morph!.pos[1], morph!.pos[2])
+      // sit on the eased position + the transient lean (the glass tips toward
+      // whichever reference is asserting its pull during the indicate chorus)
+      const ln = morph!.lean
+      g.position.set(morph!.pos[0] + ln[0], morph!.pos[1] + ln[1], morph!.pos[2] + ln[2])
     } else {
       g.position.x = damp(g.position.x, position[0], lambda, dt)
       g.position.y = damp(g.position.y, position[1], lambda, dt)
@@ -284,6 +271,16 @@ export function Lens({
     }
     ;(rimMat.uniforms.uColor.value as THREE.Color).lerp(accentTarget, k)
     ;(coreMat.uniforms.uColor.value as THREE.Color).lerp(accentTarget, k)
+    // bleed the currently-leaning puller's accent into the glass tint, scaled by
+    // how far the lens is currently leaning — a soft directional color wash.
+    if (morphing && morph!.leanColor) {
+      const lm = Math.min(1, Math.hypot(morph!.lean[0], morph!.lean[1], morph!.lean[2]) * 4)
+      if (lm > 0.001) {
+        leanTint.set(morph!.leanColor)
+        ;(rimMat.uniforms.uColor.value as THREE.Color).lerp(leanTint, lm * 0.4)
+        if (mtmRef.current) mtmRef.current.color.lerp(leanTint, lm * 0.15)
+      }
+    }
     // When the lens holds reference tiles, dial the silhouette rim down so its
     // additive glow stops washing over the tiles; the core glow (behind the
     // tiles) carries the luminous body instead. Empty lens + anchors keep 1.7.
