@@ -82,21 +82,31 @@ export function AbsorbDirector({ focusVec, bloomRef }: AbsorbDirectorProps) {
       const nolanW = toWorld(nolanProfile.position)
       const taraW = toWorld(tarantinoProfile.position)
       const userOldW = toWorld(deriveUserProfile(st.activeAssetIds).displayPosition)
+      // In Build mode the anchors + pending node aren't rendered, so the camera
+      // stays on the user lens (a simple rack + slow morph). The full
+      // constellation framing only applies in Compare mode.
+      const compare = st.mode === 'compare'
 
       if (elapsed < RACK_MS) {
         if (absorbPhase !== 'rack') st.setAbsorbPhase('rack')
-        // rack focus onto the incoming reference at its true coordinate
-        desired.current.set(pendingW[0], pendingW[1], pendingW[2])
+        // Compare: rack focus onto the incoming reference at its true coordinate.
+        // Build: just hold on the user lens.
+        if (compare) desired.current.set(pendingW[0], pendingW[1], pendingW[2])
+        else desired.current.set(userOldW[0], userOldW[1], userOldW[2])
         targetExposure = 1.25
         targetBloom = 0.8
       } else if (elapsed < COMMIT_AT) {
         if (absorbPhase !== 'survey') st.setAbsorbPhase('survey')
-        // hold on the whole-constellation centroid (the comparison beat)
-        desired.current.set(
-          (userOldW[0] + pendingW[0] + nolanW[0] + taraW[0]) / 4,
-          (userOldW[1] + pendingW[1] + nolanW[1] + taraW[1]) / 4,
-          (userOldW[2] + pendingW[2] + nolanW[2] + taraW[2]) / 4,
-        )
+        if (compare) {
+          // hold on the whole-constellation centroid (the comparison beat)
+          desired.current.set(
+            (userOldW[0] + pendingW[0] + nolanW[0] + taraW[0]) / 4,
+            (userOldW[1] + pendingW[1] + nolanW[1] + taraW[1]) / 4,
+            (userOldW[2] + pendingW[2] + nolanW[2] + taraW[2]) / 4,
+          )
+        } else {
+          desired.current.set(userOldW[0], userOldW[1], userOldW[2])
+        }
         targetExposure = 1.22
         targetBloom = 0.82
       } else {

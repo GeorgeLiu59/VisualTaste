@@ -51,7 +51,7 @@ export function runWalkthrough(): () => void {
     await absorb('user-concrete-corridor') // architectural
     await absorb('user-earth') // vast
 
-    // Scene 5: neon diner — the key moment, taste fractures into a warm lobe.
+    // Scene 5: neon diner — the key moment, taste gains a warm, electric side.
     await absorb('user-neon-diner', 850)
 
     // Scenes 6-7: reinforce the warm side, then a palette.
@@ -59,8 +59,16 @@ export function runWalkthrough(): () => void {
     await absorb('palette-steel-cinema') // palette
     if (cancelled) return
 
-    // Scene 8: unfold the profile into its ingredients.
-    cam().setGoal(null)
+    // Scene 8a: Compare — bring in the anchors and weigh the taste against each.
+    t().setMode('compare')
+    t().setCompareTarget('nolan')
+    await delay(3200)
+    if (cancelled) return
+    t().setCompareTarget('tarantino')
+    await delay(3200)
+    if (cancelled) return
+
+    // Scene 8b: unfold the profile into its ingredients.
     t().setMode('unfold')
     await delay(3800)
     if (cancelled) return

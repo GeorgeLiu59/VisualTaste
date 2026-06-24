@@ -21,7 +21,6 @@ import {
   type Vec3,
 } from '../data/tasteData'
 import {
-  clampAwayFromAnchors,
   computeSimilarity,
   deriveUserProfile,
   isTarantinoLike,
@@ -59,14 +58,11 @@ function SceneContent() {
   const user = useMemo(() => deriveUserProfile(activeAssetIds), [activeAssetIds])
   const activeAssets = useMemo(() => activeAssetIds.map(getAsset), [activeAssetIds])
 
-  // hover bend: pull the user lens slightly toward the hovered reference.
-  // Bend from (and re-clamp to) the display position so the lens never slides
-  // into an anchor — it approaches, never merges.
-  const hoveredAsset = hoveredAssetId ? getAsset(hoveredAssetId) : null
-  const bentTaste = hoveredAsset
-    ? clampAwayFromAnchors(lerpTaste(user.displayPosition, hoveredAsset.position, 0.2))
-    : user.displayPosition
-  const userWorld = toWorld(bentTaste)
+  // The user lens rests at its derived (clamped) display position. Hovering a
+  // tray reference no longer yanks the lens toward where it *would* land — that
+  // preview-move read as the lens snapping around. The actual move happens only
+  // on absorb (the slow morph). Hover still lights things up (brightness below).
+  const userWorld = toWorld(user.displayPosition)
 
   // compare: glide the selected anchor partway toward the user (display pos)
   const nolanTaste =
@@ -82,6 +78,9 @@ function SceneContent() {
 
   const count = activeAssets.length
   const isUnfold = mode === 'unfold'
+  // Anchors (and the cross-space comparison visuals) belong to Compare mode.
+  // Build mode is just "you".
+  const showAnchors = mode === 'compare'
   const userScale = isUnfold ? 0.2 : count === 0 ? 0.82 : 0.95 + Math.min(count, 6) * 0.07
 
   const leansNolan = user.position.y > 0.2 && user.position.x < 0.05
@@ -128,42 +127,48 @@ function SceneContent() {
 
       <AxisLabels opacity={0.14} />
 
-      {/* Nolan */}
-      <Lens
-        position={nolanWorld}
-        palette={nolanProfile.palette}
-        accent="#8fb4e6"
-        scale={NOLAN_SCALE}
-        stretch={NOLAN_STRETCH}
-        irregular={0.04}
-        geometrySeed={2}
-      />
-      <ProfileAttachments
-        center={nolanWorld}
-        assets={nolanAssets}
-        palette={nolanProfile.palette}
-        containerRadius={nolanContainer}
-        emphasis={mode === 'compare' && compareTarget === 'nolan' ? 0.9 : 0.62}
-      />
+      {/* Nolan & Tarantino anchors — only present in Compare mode. Build mode is
+          just "you", so the user can watch their own taste form uncluttered. */}
+      {showAnchors && (
+        <>
+          {/* Nolan */}
+          <Lens
+            position={nolanWorld}
+            palette={nolanProfile.palette}
+            accent="#8fb4e6"
+            scale={NOLAN_SCALE}
+            stretch={NOLAN_STRETCH}
+            irregular={0.04}
+            geometrySeed={2}
+          />
+          <ProfileAttachments
+            center={nolanWorld}
+            assets={nolanAssets}
+            palette={nolanProfile.palette}
+            containerRadius={nolanContainer}
+            emphasis={compareTarget === 'nolan' ? 0.9 : 0.62}
+          />
 
-      {/* Tarantino */}
-      <Lens
-        position={tarantinoWorld}
-        palette={tarantinoProfile.palette}
-        accent="#ff7a45"
-        scale={TARANTINO_SCALE}
-        stretch={TARANTINO_STRETCH}
-        irregular={0.06}
-        geometrySeed={5}
-        rimScale={0.4}
-      />
-      <ProfileAttachments
-        center={tarantinoWorld}
-        assets={tarantinoAssets}
-        palette={tarantinoProfile.palette}
-        containerRadius={tarantinoContainer}
-        emphasis={mode === 'compare' && compareTarget === 'tarantino' ? 0.9 : 0.62}
-      />
+          {/* Tarantino */}
+          <Lens
+            position={tarantinoWorld}
+            palette={tarantinoProfile.palette}
+            accent="#ff7a45"
+            scale={TARANTINO_SCALE}
+            stretch={TARANTINO_STRETCH}
+            irregular={0.06}
+            geometrySeed={5}
+            rimScale={0.4}
+          />
+          <ProfileAttachments
+            center={tarantinoWorld}
+            assets={tarantinoAssets}
+            palette={tarantinoProfile.palette}
+            containerRadius={tarantinoContainer}
+            emphasis={compareTarget === 'tarantino' ? 0.9 : 0.62}
+          />
+        </>
+      )}
 
       {/* You */}
       <Lens
@@ -192,15 +197,19 @@ function SceneContent() {
 
       <UnfoldView center={userWorld} assets={activeAssets} palette={user.palette} active={isUnfold} />
 
-      <OverlapField
-        userCenter={userWorld}
-        anchorCenter={anchorForOverlap}
-        color={OVERLAP_COLOR[compareTarget]}
-        active={mode === 'compare'}
-        similarity={compareSimilarity}
-      />
-
-      <ConstellationReveal />
+      {showAnchors && (
+        <>
+          <OverlapField
+            userCenter={userWorld}
+            anchorCenter={anchorForOverlap}
+            color={OVERLAP_COLOR[compareTarget]}
+            active={mode === 'compare'}
+            similarity={compareSimilarity}
+          />
+          {/* the cross-space constellation reveal only reads against anchors */}
+          <ConstellationReveal />
+        </>
+      )}
 
       <CameraRig />
     </>
