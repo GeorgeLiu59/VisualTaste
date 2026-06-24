@@ -28,7 +28,7 @@ export function AxisLabels({ opacity = 0.16 }: { opacity?: number }) {
 
   useFrame((_, dt) => {
     const phase = useTasteStore.getState().absorbPhase
-    const revealing = phase === 'rack' || phase === 'survey' || phase === 'commit'
+    const revealing = phase === 'hold'
     let target = opacity
     if (revealing) {
       target = 0.5

@@ -24,20 +24,19 @@ await page.waitForTimeout(200)
 await page.screenshot({ path: '.preview/drag-mid.png' })
 await page.mouse.up()
 
-// the cinematic absorb beat (~4.75s): rack → survey reveal → slow eased morph.
-// capture the held comparison beat and a mid-migration frame, then the settle.
-await page.waitForTimeout(1200) // ~survey: axis labels up, affinity threads, dual halos
-await page.screenshot({ path: '.preview/drag-survey.png' })
-const surveyPhase = await page.evaluate(() => window.tasteStore.getState().absorbPhase)
+// the "liquid drop" beat (~3.2s): hold (pre-reach) → eased stretch-migrate → settle.
+await page.waitForTimeout(280) // ~hold: body parked, glass pre-reaching toward the new tile
+await page.screenshot({ path: '.preview/drag-hold.png' })
+const holdPhase = await page.evaluate(() => window.tasteStore.getState().absorbPhase)
 
-await page.waitForTimeout(2000) // ~migrate (mid): lens travelling/recoloring/reshaping
+await page.waitForTimeout(1300) // ~mid-migrate: peak teardrop stretch, body travelling
 const migA = await page.evaluate(() => window.tasteStore.getState())
 await page.screenshot({ path: '.preview/drag-migrate.png' })
 
-await page.waitForTimeout(2000) // settle
+await page.waitForTimeout(1800) // settle
 const after = await page.evaluate(() => window.tasteStore.getState().activeAssetIds)
 console.log('before:', before, 'after:', JSON.stringify(after))
-console.log('surveyPhase:', surveyPhase, '(expect "survey")')
+console.log('holdPhase:', holdPhase, '(expect "hold")')
 console.log('migratePhase:', migA.absorbPhase, '(expect "migrate")')
 console.log('ERRORS:', errors.length)
 errors.slice(0, 10).forEach((e) => console.log(' -', e.slice(0, 160)))

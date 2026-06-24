@@ -4,24 +4,7 @@ import { MeshTransmissionMaterial } from '@react-three/drei'
 import * as THREE from 'three'
 import { clamp, damp } from '../lib/taste'
 import { useUserMorphStore } from '../store/userMorphStore'
-
-// ---------------------------------------------------------------------------
-// Shared assets (created once)
-// ---------------------------------------------------------------------------
-
-const softDot = (() => {
-  const c = document.createElement('canvas')
-  c.width = c.height = 64
-  const ctx = c.getContext('2d')!
-  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
-  g.addColorStop(0, 'rgba(255,255,255,1)')
-  g.addColorStop(0.35, 'rgba(255,255,255,0.7)')
-  g.addColorStop(1, 'rgba(255,255,255,0)')
-  ctx.fillStyle = g
-  ctx.fillRect(0, 0, 64, 64)
-  const tex = new THREE.CanvasTexture(c)
-  return tex
-})()
+import { softDot } from './softDot'
 
 function makeLensGeometry(irregularity: number, seed: number) {
   const geo = new THREE.SphereGeometry(1, 110, 110)
@@ -238,6 +221,11 @@ export function Lens({
   const tintTarget = useMemo(() => new THREE.Color(), [])
   const attenTarget = useMemo(() => new THREE.Color(), [])
   const accentTarget = useMemo(() => new THREE.Color(), [])
+  const leanTint = useMemo(() => new THREE.Color(), [])
+  // scratch for the directional liquid-drop stretch (user lens only)
+  const UP = useMemo(() => new THREE.Vector3(0, 1, 0), [])
+  const stretchAxisVec = useMemo(() => new THREE.Vector3(0, 1, 0), [])
+  const stretchQuat = useMemo(() => new THREE.Quaternion(), [])
   useEffect(() => {
     tintTarget.set(palette[4] ?? palette[palette.length - 1] ?? '#e7ecf3')
     attenTarget.set(palette[2] ?? palette[1] ?? '#9aa6b3')
@@ -255,6 +243,7 @@ export function Lens({
     const morphing = morph?.active === true
     const k = morphing ? clamp(morph!.e) : 1 - Math.exp(-lambda * dt)
     if (morphing) {
+      // sit on the eased position the director publishes
       g.position.set(morph!.pos[0], morph!.pos[1], morph!.pos[2])
     } else {
       g.position.x = damp(g.position.x, position[0], lambda, dt)
@@ -274,8 +263,28 @@ export function Lens({
     g.scale.z = damp(g.scale.z, s * stretch[2], scaleLambda, dt)
 
     if (inner.current) {
-      inner.current.rotation.y += dt * 0.05
-      inner.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.13) * 0.08
+      if (morphing && morph!.stretchAmt > 0.001) {
+        // Liquid-drop stretch: orient the inner glass so its local +Y points
+        // along the world stretch axis, then elongate along Y and pinch across
+        // (volume-preserving prolate). Slerp/damp so it eases, never snaps.
+        stretchAxisVec.set(morph!.stretchAxis[0], morph!.stretchAxis[1], morph!.stretchAxis[2])
+        stretchQuat.setFromUnitVectors(UP, stretchAxisVec)
+        inner.current.quaternion.slerp(stretchQuat, 1 - Math.exp(-5 * dt))
+        const lambdaStretch = 1 + morph!.stretchAmt
+        const across = 1 / Math.sqrt(lambdaStretch)
+        inner.current.scale.x = damp(inner.current.scale.x, across, 2.8, dt)
+        inner.current.scale.y = damp(inner.current.scale.y, lambdaStretch, 2.8, dt)
+        inner.current.scale.z = damp(inner.current.scale.z, across, 2.8, dt)
+      } else {
+        // relax the stretch orientation/scale back to round (heals any tilt
+        // left from a just-finished morph), then resume the gentle idle drift.
+        stretchQuat.identity()
+        inner.current.quaternion.slerp(stretchQuat, 1 - Math.exp(-4 * dt))
+        inner.current.rotateY(dt * 0.05)
+        inner.current.scale.x = damp(inner.current.scale.x, 1, 4, dt)
+        inner.current.scale.y = damp(inner.current.scale.y, 1, 4, dt)
+        inner.current.scale.z = damp(inner.current.scale.z, 1, 4, dt)
+      }
     }
 
     if (mtmRef.current) {
@@ -284,6 +293,16 @@ export function Lens({
     }
     ;(rimMat.uniforms.uColor.value as THREE.Color).lerp(accentTarget, k)
     ;(coreMat.uniforms.uColor.value as THREE.Color).lerp(accentTarget, k)
+    // bleed the driver's accent into the glass tint, scaled by the current
+    // stretch — the recolor reads as washing in *from* the thing that caused it.
+    if (morphing && morph!.impactColor) {
+      const lm = Math.min(1, morph!.stretchAmt * 2.2)
+      if (lm > 0.001) {
+        leanTint.set(morph!.impactColor)
+        ;(rimMat.uniforms.uColor.value as THREE.Color).lerp(leanTint, lm * 0.4)
+        if (mtmRef.current) mtmRef.current.color.lerp(leanTint, lm * 0.15)
+      }
+    }
     // When the lens holds reference tiles, dial the silhouette rim down so its
     // additive glow stops washing over the tiles; the core glow (behind the
     // tiles) carries the luminous body instead. Empty lens + anchors keep 1.7.
