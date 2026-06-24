@@ -2,13 +2,9 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { getAsset, type Asset } from '../data/tasteData'
-import { clamp, toWorld } from '../lib/taste'
 import { useTasteStore } from '../store/tasteStore'
 import { useUserMorphStore } from '../store/userMorphStore'
-import { usePullStore } from '../store/pullStore'
 import { AssetVisual, assetSize } from './AssetVisual'
-import { softDot } from './softDot'
-import { curveColorFor } from './InfluenceCurve'
 
 export interface AssetAttachmentProps {
   asset: Asset
@@ -19,37 +15,27 @@ export interface AssetAttachmentProps {
   containerRadius: number
   /** Visual prominence: 1 for the user's references, lower for anchors. */
   emphasis?: number
-  /** Whether this tile belongs to the user lens (gets pull lunges). */
+  /** Whether this tile belongs to the user lens (can lead the drop tip). */
   isUser?: boolean
 }
 
 const GOLDEN = Math.PI * (3 - Math.sqrt(5))
-const lungeEnv = (tau: number) => Math.sin(Math.PI * Math.pow(clamp(tau), 0.7))
 
 export function AssetAttachment({
   asset,
   index,
   total,
-  palette,
   containerRadius,
   emphasis = 1,
   isUser = false,
 }: AssetAttachmentProps) {
   const holder = useRef<THREE.Group>(null!)
-  const wake = useRef<THREE.Mesh>(null!)
-  const wakeMat = useRef<THREE.MeshBasicMaterial>(null!)
-  const wakeColor = useMemo(
-    () => new THREE.Color(curveColorFor(asset.type, asset.palette.length ? asset.palette : palette)),
-    [asset, palette],
-  )
 
-  // Phyllotaxis disc, but scattered THROUGH the bubble rather than packed on a
-  // flat plane: a wider radial spread, a little deterministic jitter so it reads
-  // organic (not a mechanical lattice), and a per-tile depth offset so tiles sit
-  // at staggered front-to-back depths inside the glass (less cramped, floatier).
+  // Phyllotaxis disc, scattered THROUGH the bubble rather than packed on a flat
+  // plane: wider radial spread, deterministic jitter so it reads organic, and a
+  // per-tile front-to-back depth offset so tiles float at staggered depths.
   const layout = useMemo(() => {
     const n = Math.max(total, 1)
-    // deterministic per-index hash (stable across frames/renders), ~[-1,1]
     const h1 = Math.sin(index * 12.9898) * 43758.5453
     const h2 = Math.sin(index * 78.233) * 12543.987
     const j1 = (h1 - Math.floor(h1)) * 2 - 1
@@ -67,7 +53,7 @@ export function AssetAttachment({
   }, [index, total, containerRadius])
 
   const [unitW, unitH] = assetSize(asset)
-  // shrink as the cluster grows so the (now wider-spread) tiles don't overlap
+  // shrink as the cluster grows so the (wider-spread) tiles don't overlap
   const tileScale = containerRadius * (0.58 - Math.min(total, 6) * 0.035)
 
   // reused vectors (avoid per-frame allocation)
@@ -97,95 +83,42 @@ export function AssetAttachment({
       depthOffset +
       Math.sin(t * 0.4 + bobPhase) * containerRadius * 0.02
 
-    // ---- pull lunge: while this ref is indicating, it dives toward its true
-    // taste-space pull direction (projected onto the camera plane), dragging a
-    // pigment wake. Direction = which way it dives; strength = how far + bright.
-    let lungeScale = 1
-    let wakeOpacity = 0
-    let wakeLen = 0
-    let sx = 0
-    let sy = 0
+    out.current
+      .set(0, 0, 0)
+      .addScaledVector(camX.current, lift)
+      .addScaledVector(camY.current, rise)
+      .addScaledVector(camZ.current, depth)
+
+    // The driver reference (the one that caused the beat) rides the leading tip
+    // of the drop: push it along the stretch axis (projected onto the camera
+    // plane) by driverLead, then it eases back into the cluster as the drop
+    // rounds out. One smooth ramp — no per-frame lunge envelope.
     if (isUser) {
-      const pull = usePullStore.getState().activePulls.find((p) => p.id === asset.id)
-      if (pull) {
-        const morph = useUserMorphStore.getState()
-        const cW = morph.active ? morph.pos : [0, 0, 0]
-        const tW = toWorld(asset.position)
-        pullW.current.set(tW[0] - cW[0], tW[1] - cW[1], tW[2] - cW[2])
-        if (pullW.current.lengthSq() > 1e-6) pullW.current.normalize()
-        // project the world pull onto the camera basis (screen plane + depth)
-        sx = pullW.current.dot(camX.current)
-        sy = pullW.current.dot(camY.current)
+      const morph = useUserMorphStore.getState()
+      if (morph.active && morph.driverId === asset.id && morph.driverLead > 0.001) {
+        const ax = morph.stretchAxis
+        pullW.current.set(ax[0], ax[1], ax[2])
+        const sx = pullW.current.dot(camX.current)
+        const sy = pullW.current.dot(camY.current)
         const sz = pullW.current.dot(camZ.current) * 0.5
-        // floor: if the pull is nearly head-on (tiny in-plane), bias tangentially
-        if (Math.hypot(sx, sy) < 0.12) {
-          sx += 0.12
-        }
-        const env = lungeEnv(pull.tau) * (pull.releasing ? -1 : 1)
-        const aMax = containerRadius * (0.2 + 0.35 * pull.weight)
-        const A = aMax * env
+        const lead = morph.driverLead * containerRadius * 0.9
         out.current
-          .set(0, 0, 0)
-          .addScaledVector(camX.current, lift + sx * A)
-          .addScaledVector(camY.current, rise + sy * A)
-          .addScaledVector(camZ.current, depth + sz * A)
-        holder.current.position.copy(out.current)
-        lungeScale = 1 + 0.18 * Math.abs(env) * pull.weight
-        wakeOpacity = 0.55 * pull.weight * Math.abs(env)
-        wakeLen = (0.7 + 1.6 * pull.weight) * Math.abs(env)
-      } else {
-        out.current
-          .set(0, 0, 0)
-          .addScaledVector(camX.current, lift)
-          .addScaledVector(camY.current, rise)
-          .addScaledVector(camZ.current, depth)
-        holder.current.position.copy(out.current)
+          .addScaledVector(camX.current, sx * lead)
+          .addScaledVector(camY.current, sy * lead)
+          .addScaledVector(camZ.current, sz * lead)
       }
-    } else {
-      out.current
-        .set(0, 0, 0)
-        .addScaledVector(camX.current, lift)
-        .addScaledVector(camY.current, rise)
-        .addScaledVector(camZ.current, depth)
-      holder.current.position.copy(out.current)
     }
 
-    const targetScale = (isHovered ? 1.32 : dimmed ? 0.82 : 1) * lungeScale * tileScale
+    holder.current.position.copy(out.current)
+
+    const targetScale = (isHovered ? 1.32 : dimmed ? 0.82 : 1) * tileScale
     const s = holder.current.scale.x
     const ns = s + (targetScale - s) * Math.min(1, dt * 8)
     holder.current.scale.setScalar(ns)
-
-    // drive the pigment wake (a child of the holder, in its local frame)
-    if (wake.current && wakeMat.current) {
-      const vis = wakeOpacity > 0.01
-      wake.current.visible = vis
-      if (vis) {
-        const angle = Math.atan2(sy, sx) + Math.PI // trail behind the lunge
-        wake.current.rotation.z = angle
-        wake.current.scale.set(wakeLen, wakeLen * 0.42, 1)
-        wake.current.position.set((Math.cos(angle) * wakeLen) / 2, (Math.sin(angle) * wakeLen) / 2, -0.04)
-        wakeMat.current.color.copy(wakeColor)
-        wakeMat.current.opacity = wakeOpacity
-      }
-    }
   })
 
   return (
     <group ref={holder}>
-      {isUser && (
-        <mesh ref={wake} renderOrder={9} visible={false}>
-          <planeGeometry args={[1, 1]} />
-          <meshBasicMaterial
-            ref={wakeMat}
-            map={softDot}
-            transparent
-            opacity={0}
-            depthWrite={false}
-            blending={THREE.AdditiveBlending}
-            toneMapped={false}
-          />
-        </mesh>
-      )}
       <AssetVisual asset={asset} sizeW={unitW} sizeH={unitH} opacity={0.78 + emphasis * 0.22} />
     </group>
   )

@@ -35,9 +35,12 @@ export function ProfileAttachments({
     // position the lens body uses, so references never lag behind the glass.
     const morph = isUser ? useUserMorphStore.getState() : null
     if (morph?.active) {
-      // include the body lean so the tile cluster tips with the glass
-      const ln = morph.lean
-      g.position.set(morph.pos[0] + ln[0], morph.pos[1] + ln[1], morph.pos[2] + ln[2])
+      // viscous haul: the tile cluster TRAILS the body (which sits exactly on
+      // morph.pos) at a lower lambda, so tiles lag behind the leading edge
+      // mid-flight and catch up as the body eases into settle.
+      g.position.x = damp(g.position.x, morph.pos[0], 3.8, dt)
+      g.position.y = damp(g.position.y, morph.pos[1], 3.8, dt)
+      g.position.z = damp(g.position.z, morph.pos[2], 3.8, dt)
       return
     }
     g.position.x = damp(g.position.x, center[0], lambda, dt)

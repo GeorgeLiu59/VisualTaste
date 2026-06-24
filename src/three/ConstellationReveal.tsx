@@ -107,8 +107,7 @@ export function ConstellationReveal() {
           }}
           dynamicStrength={() => {
             const phase = useTasteStore.getState().absorbPhase
-            if (phase === 'rack') return t.strength * 0.3
-            if (phase === 'indicate') return t.strength
+            if (phase === 'hold') return t.strength
             // migrate: fade out on the eased morph clock
             const m = useUserMorphStore.getState()
             return t.strength * (1 - (m.active ? m.e : 1))
@@ -134,8 +133,8 @@ export function ConstellationReveal() {
   )
 }
 
-/** OverlapField wrapper that is active only during the held indicate beat. */
+/** OverlapField wrapper that is active only during the held beat. */
 function SurveyHalo(props: { userCenter: V3; anchorCenter: V3; color: string; similarity: number }) {
-  const active = useTasteStore((s) => s.absorbPhase === 'indicate')
+  const active = useTasteStore((s) => s.absorbPhase === 'hold')
   return <OverlapField {...props} active={active} />
 }

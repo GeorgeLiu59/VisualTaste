@@ -43,7 +43,7 @@ export function AbsorbHUD() {
   // The anchor-affinity readout only makes sense in Compare mode (where the
   // anchors are present). Build mode stays pure — just the lunging tiles + the
   // one-word micro-label.
-  const showing = useTasteStore((s) => s.absorbPhase === 'indicate' && s.mode === 'compare')
+  const showing = useTasteStore((s) => s.absorbPhase === 'hold' && s.mode === 'compare')
 
   const info = useMemo(() => {
     if (!pendingAssetId) return null

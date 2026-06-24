@@ -222,6 +222,10 @@ export function Lens({
   const attenTarget = useMemo(() => new THREE.Color(), [])
   const accentTarget = useMemo(() => new THREE.Color(), [])
   const leanTint = useMemo(() => new THREE.Color(), [])
+  // scratch for the directional liquid-drop stretch (user lens only)
+  const UP = useMemo(() => new THREE.Vector3(0, 1, 0), [])
+  const stretchAxisVec = useMemo(() => new THREE.Vector3(0, 1, 0), [])
+  const stretchQuat = useMemo(() => new THREE.Quaternion(), [])
   useEffect(() => {
     tintTarget.set(palette[4] ?? palette[palette.length - 1] ?? '#e7ecf3')
     attenTarget.set(palette[2] ?? palette[1] ?? '#9aa6b3')
@@ -239,10 +243,8 @@ export function Lens({
     const morphing = morph?.active === true
     const k = morphing ? clamp(morph!.e) : 1 - Math.exp(-lambda * dt)
     if (morphing) {
-      // sit on the eased position + the transient lean (the glass tips toward
-      // whichever reference is asserting its pull during the indicate chorus)
-      const ln = morph!.lean
-      g.position.set(morph!.pos[0] + ln[0], morph!.pos[1] + ln[1], morph!.pos[2] + ln[2])
+      // sit on the eased position the director publishes
+      g.position.set(morph!.pos[0], morph!.pos[1], morph!.pos[2])
     } else {
       g.position.x = damp(g.position.x, position[0], lambda, dt)
       g.position.y = damp(g.position.y, position[1], lambda, dt)
@@ -261,8 +263,28 @@ export function Lens({
     g.scale.z = damp(g.scale.z, s * stretch[2], scaleLambda, dt)
 
     if (inner.current) {
-      inner.current.rotation.y += dt * 0.05
-      inner.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.13) * 0.08
+      if (morphing && morph!.stretchAmt > 0.001) {
+        // Liquid-drop stretch: orient the inner glass so its local +Y points
+        // along the world stretch axis, then elongate along Y and pinch across
+        // (volume-preserving prolate). Slerp/damp so it eases, never snaps.
+        stretchAxisVec.set(morph!.stretchAxis[0], morph!.stretchAxis[1], morph!.stretchAxis[2])
+        stretchQuat.setFromUnitVectors(UP, stretchAxisVec)
+        inner.current.quaternion.slerp(stretchQuat, 1 - Math.exp(-5 * dt))
+        const lambdaStretch = 1 + morph!.stretchAmt
+        const across = 1 / Math.sqrt(lambdaStretch)
+        inner.current.scale.x = damp(inner.current.scale.x, across, 2.8, dt)
+        inner.current.scale.y = damp(inner.current.scale.y, lambdaStretch, 2.8, dt)
+        inner.current.scale.z = damp(inner.current.scale.z, across, 2.8, dt)
+      } else {
+        // relax the stretch orientation/scale back to round (heals any tilt
+        // left from a just-finished morph), then resume the gentle idle drift.
+        stretchQuat.identity()
+        inner.current.quaternion.slerp(stretchQuat, 1 - Math.exp(-4 * dt))
+        inner.current.rotateY(dt * 0.05)
+        inner.current.scale.x = damp(inner.current.scale.x, 1, 4, dt)
+        inner.current.scale.y = damp(inner.current.scale.y, 1, 4, dt)
+        inner.current.scale.z = damp(inner.current.scale.z, 1, 4, dt)
+      }
     }
 
     if (mtmRef.current) {
@@ -271,12 +293,12 @@ export function Lens({
     }
     ;(rimMat.uniforms.uColor.value as THREE.Color).lerp(accentTarget, k)
     ;(coreMat.uniforms.uColor.value as THREE.Color).lerp(accentTarget, k)
-    // bleed the currently-leaning puller's accent into the glass tint, scaled by
-    // how far the lens is currently leaning — a soft directional color wash.
-    if (morphing && morph!.leanColor) {
-      const lm = Math.min(1, Math.hypot(morph!.lean[0], morph!.lean[1], morph!.lean[2]) * 4)
+    // bleed the driver's accent into the glass tint, scaled by the current
+    // stretch — the recolor reads as washing in *from* the thing that caused it.
+    if (morphing && morph!.impactColor) {
+      const lm = Math.min(1, morph!.stretchAmt * 2.2)
       if (lm > 0.001) {
-        leanTint.set(morph!.leanColor)
+        leanTint.set(morph!.impactColor)
         ;(rimMat.uniforms.uColor.value as THREE.Color).lerp(leanTint, lm * 0.4)
         if (mtmRef.current) mtmRef.current.color.lerp(leanTint, lm * 0.15)
       }

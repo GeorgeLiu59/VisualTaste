@@ -7,14 +7,15 @@ export type Mode = 'build' | 'compare' | 'unfold'
 export type AnchorId = 'nolan' | 'tarantino'
 
 /**
- * Phases of the cinematic "pull chorus" beat (driven by AbsorbDirector off a
- * frame clock). 'idle' = nothing in flight.
- *   rack     — acknowledge the drop/release; bubble pinned at the OLD centroid
- *   indicate — each reference lunges toward its pull, one at a time (the chorus)
- *   migrate  — the bubble slowly, deliberately eases to its new resultant spot
+ * Phases of the "liquid drop" absorb beat (driven by AbsorbDirector off a frame
+ * clock). 'idle' = nothing in flight.
+ *   hold    — brief acknowledge; bubble pinned at the OLD centroid, the glass
+ *             pre-reaches toward the driver reference (cause before effect)
+ *   migrate — the bubble eases to its new resultant spot while stretching like a
+ *             liquid drop along the driver's axis, then rounds out
  * (commit is an instantaneous latch inside the director, not a held phase.)
  */
-export type AbsorbPhase = 'idle' | 'rack' | 'indicate' | 'migrate'
+export type AbsorbPhase = 'idle' | 'hold' | 'migrate'
 
 export type AbsorbKind = 'add' | 'remove'
 
@@ -44,12 +45,8 @@ interface TasteState {
   releasingAssetId: string | null
   /** performance.now() captured when the beat began (frame-clock origin). */
   absorbStartedAt: number | null
-  /** Old bubble centroid (world) — held while the chorus plays. */
+  /** Old bubble centroid (world) — held while the drop pre-reaches. */
   heldCenterW: V3 | null
-  /** Ordered ids for the indicate chorus (cause first, then by strength). */
-  indicateOrder: string[]
-  /** ms between successive lunges this beat (chosen from ref count). */
-  indicateStride: number
 
   addAsset: (id: string) => void
   removeAsset: (id: string) => void
@@ -75,19 +72,6 @@ interface TasteState {
   endAbsorb: () => void
   /** beginAbsorb + a promise that resolves when the beat fully completes. */
   beginAbsorbAndWait: (id: string) => Promise<void>
-}
-
-/** Per-beat lunge stride: ~3.2s of chorus spread across N refs, clamped. */
-function strideFor(n: number): number {
-  return Math.min(520, Math.max(300, Math.round(3200 / Math.max(n - 1, 1))))
-}
-
-/** Cause first, then the rest by descending strength (stable order per beat). */
-function buildIndicateOrder(causeId: string, ids: string[]): string[] {
-  const rest = ids
-    .filter((a) => a !== causeId)
-    .sort((a, b) => getAsset(b).strength - getAsset(a).strength)
-  return [causeId, ...rest]
 }
 
 let labelTimer: ReturnType<typeof setTimeout> | null = null
@@ -122,8 +106,8 @@ export const useTasteStore = create<TasteState>((set, get) => {
       rippleSeed: s.rippleSeed + 1,
     }))
 
-  // Pin the lens body at a given world centroid for the rest of the beat, so it
-  // holds still while the chorus plays (set synchronously to avoid a 1-frame
+  // Pin the lens body at a given world centroid for the start of the beat, so it
+  // holds still while the drop pre-reaches (set synchronously to avoid a 1-frame
   // jump when the asset set has already changed).
   const holdAt = (centerW: V3) => useUserMorphStore.getState().setMorph(true, centerW, 0)
 
@@ -143,8 +127,6 @@ export const useTasteStore = create<TasteState>((set, get) => {
     releasingAssetId: null,
     absorbStartedAt: null,
     heldCenterW: null,
-    indicateOrder: [],
-    indicateStride: 360,
 
     addAsset: (id) => applyAsset(id),
 
@@ -188,36 +170,31 @@ export const useTasteStore = create<TasteState>((set, get) => {
       // hold at the OLD centroid (before the append) so the body doesn't jump
       const oldCenter = toWorld(deriveUserProfile(activeAssetIds).displayPosition)
       holdAt(oldCenter)
-      // append now so the new tile joins the cluster and gets its own lunge
+      // append now so the new tile joins the cluster and can lead the tip
       applyAsset(id)
-      const nextIds = get().activeAssetIds
       set({
         absorbKind: 'add',
         pendingAssetId: id,
         releasingAssetId: null,
-        absorbPhase: 'rack',
+        absorbPhase: 'hold',
         absorbStartedAt: performance.now(),
         heldCenterW: oldCenter,
-        indicateOrder: buildIndicateOrder(id, nextIds),
-        indicateStride: strideFor(nextIds.length),
       })
     },
 
     beginRelease: (id) => {
       const { pendingAssetId, releasingAssetId, activeAssetIds } = get()
       if (pendingAssetId != null || releasingAssetId != null || !activeAssetIds.includes(id)) return
-      // hold at the CURRENT centroid (asset still in) through the chorus
+      // hold at the CURRENT centroid (asset still in) through the pre-reach
       const oldCenter = toWorld(deriveUserProfile(activeAssetIds).displayPosition)
       holdAt(oldCenter)
       set({
         absorbKind: 'remove',
         pendingAssetId: null,
         releasingAssetId: id,
-        absorbPhase: 'rack',
+        absorbPhase: 'hold',
         absorbStartedAt: performance.now(),
         heldCenterW: oldCenter,
-        indicateOrder: buildIndicateOrder(id, activeAssetIds),
-        indicateStride: strideFor(activeAssetIds.length),
         rippleSeed: get().rippleSeed + 1,
       })
     },
@@ -242,7 +219,6 @@ export const useTasteStore = create<TasteState>((set, get) => {
         releasingAssetId: null,
         absorbStartedAt: null,
         heldCenterW: null,
-        indicateOrder: [],
       })
     },
 
