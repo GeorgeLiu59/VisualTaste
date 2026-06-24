@@ -80,7 +80,7 @@ export function AbsorbDirector({ focusVec, bloomRef }: AbsorbDirectorProps) {
       const pendingW = toWorld(pending.position)
       const nolanW = toWorld(nolanProfile.position)
       const taraW = toWorld(tarantinoProfile.position)
-      const userOldW = toWorld(deriveUserProfile(st.activeAssetIds).position)
+      const userOldW = toWorld(deriveUserProfile(st.activeAssetIds).displayPosition)
 
       if (elapsed < RACK_MS) {
         if (absorbPhase !== 'rack') st.setAbsorbPhase('rack')
@@ -104,7 +104,7 @@ export function AbsorbDirector({ focusVec, bloomRef }: AbsorbDirectorProps) {
           committed.current = true
           morphStart.current.set(userOldW[0], userOldW[1], userOldW[2])
           st.commitAbsorb() // appends pending → new derived profile
-          const newW = toWorld(deriveUserProfile(useTasteStore.getState().activeAssetIds).position)
+          const newW = toWorld(deriveUserProfile(useTasteStore.getState().activeAssetIds).displayPosition)
           morphTarget.current.set(newW[0], newW[1], newW[2])
         }
         // ---- MIGRATE: one eased clock drives the shared user position ----

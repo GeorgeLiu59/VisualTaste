@@ -21,6 +21,7 @@ import {
   type Vec3,
 } from '../data/tasteData'
 import {
+  clampAwayFromAnchors,
   computePalette,
   computeSimilarity,
   deriveUserProfile,
@@ -59,19 +60,23 @@ function SceneContent() {
   const user = useMemo(() => deriveUserProfile(activeAssetIds), [activeAssetIds])
   const activeAssets = useMemo(() => activeAssetIds.map(getAsset), [activeAssetIds])
 
-  // hover bend: pull the user lens slightly toward the hovered reference
+  // hover bend: pull the user lens slightly toward the hovered reference.
+  // Bend from (and re-clamp to) the display position so the lens never slides
+  // into an anchor — it approaches, never merges.
   const hoveredAsset = hoveredAssetId ? getAsset(hoveredAssetId) : null
-  const bentTaste = hoveredAsset ? lerpTaste(user.position, hoveredAsset.position, 0.2) : user.position
+  const bentTaste = hoveredAsset
+    ? clampAwayFromAnchors(lerpTaste(user.displayPosition, hoveredAsset.position, 0.2))
+    : user.displayPosition
   const userWorld = toWorld(bentTaste)
 
-  // compare: glide the selected anchor toward the user
+  // compare: glide the selected anchor partway toward the user (display pos)
   const nolanTaste =
     mode === 'compare' && compareTarget === 'nolan'
-      ? lerpTaste(nolanProfile.position, user.position, 0.5)
+      ? lerpTaste(nolanProfile.position, user.displayPosition, 0.5)
       : nolanProfile.position
   const tarantinoTaste =
     mode === 'compare' && compareTarget === 'tarantino'
-      ? lerpTaste(tarantinoProfile.position, user.position, 0.5)
+      ? lerpTaste(tarantinoProfile.position, user.displayPosition, 0.5)
       : tarantinoProfile.position
   const nolanWorld = toWorld(nolanTaste)
   const tarantinoWorld = toWorld(tarantinoTaste)
