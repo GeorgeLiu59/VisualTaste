@@ -181,13 +181,19 @@ export function computeLensShape(activeAssets: Asset[]): LensShape {
   return 'coherent'
 }
 
-/** Direction (taste-space) of the warm Tarantino-leaning lobe, if any. */
+// NOTE: the live lens no longer renders a separate "split lobe" — it always
+// stays one unified body. These warm/cool cluster centers are kept as the
+// seed for the future "generate" flow, where the profile cleaves into taste
+// sub-bubbles (each meshing with a prompt to produce an image option).
+
+/** Center (taste-space) of the warm, Tarantino-leaning cluster, if any. */
 export function computeWarmLobeCenter(activeAssets: Asset[]): Vec3 | null {
   const warm = activeAssets.filter(isTarantinoLike)
   if (warm.length === 0) return null
   return computeProfilePosition(warm)
 }
 
+/** Center (taste-space) of the cool, non-warm cluster, if any. */
 export function computeCoolBodyCenter(activeAssets: Asset[]): Vec3 | null {
   const cool = activeAssets.filter((a) => !isTarantinoLike(a))
   if (cool.length === 0) return null
@@ -259,7 +265,9 @@ const LABEL_BY_ASSET: Record<string, string> = {
   'palette-quiet-earth': 'palette',
 }
 
-export function microLabelFor(assetId: string, causedSplit: boolean): string {
-  if (causedSplit) return 'new lobe'
+export function microLabelFor(assetId: string, _causedSplit: boolean): string {
+  // Note: we no longer surface a special "split" word — the lens stays one
+  // unified body. Taste sub-clusters are reserved for the (future) generate
+  // flow, where the profile cleaves into sub-bubbles per prompt.
   return LABEL_BY_ASSET[assetId] ?? getAsset(assetId).label.toLowerCase()
 }

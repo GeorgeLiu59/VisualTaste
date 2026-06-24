@@ -22,7 +22,6 @@ import {
 } from '../data/tasteData'
 import {
   clampAwayFromAnchors,
-  computePalette,
   computeSimilarity,
   deriveUserProfile,
   isTarantinoLike,
@@ -102,18 +101,7 @@ function SceneContent() {
   const nolanContainer = NOLAN_SCALE * minStretch(NOLAN_STRETCH) * 0.92
   const tarantinoContainer = TARANTINO_SCALE * minStretch(TARANTINO_STRETCH) * 0.92
 
-  const showLobe = user.shape === 'split' && !isUnfold
-  const lobeDir = new THREE.Vector3(
-    tarantinoWorld[0] - userWorld[0],
-    tarantinoWorld[1] - userWorld[1],
-    tarantinoWorld[2] - userWorld[2],
-  )
-    .normalize()
-    .multiplyScalar(1.25)
-  const lobeOffset: [number, number, number] = [lobeDir.x, lobeDir.y, lobeDir.z]
-
   const warmAssets = activeAssets.filter(isTarantinoLike)
-  const warmPalette = warmAssets.length ? computePalette(warmAssets) : tarantinoProfile.palette
 
   const userAccent =
     count === 0
@@ -187,10 +175,6 @@ function SceneContent() {
         irregular={user.shape === 'split' ? 0.06 : 0.03}
         geometrySeed={1}
         rippleSeed={rippleSeed}
-        showLobe={showLobe}
-        lobeOffset={lobeOffset}
-        lobePalette={warmPalette}
-        lobeAccent="#ff7a45"
         brightness={userBrightness}
         showParticles={count > 0 && !isUnfold}
         tilePresence={count > 0 && !isUnfold ? 1 : 0}
