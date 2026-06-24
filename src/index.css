@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --bg-0: #06070a;
+  --bg-1: #0b0d12;
+  --bg-2: #14171e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg-0);
+  color: #e8e8ea;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+  overscroll-behavior: none;
+  user-select: none;
+}
+
+#root {
+  position: relative;
+  isolation: isolate;
+}
+
+/* Hide scrollbars everywhere for the cinematic feel */
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  background: transparent;
+}
+
+/* Frosted-glass utility used across the minimal chrome */
+.glass {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+}
+
+.glass-strong {
+  background: rgba(20, 23, 30, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(28px) saturate(150%);
+  -webkit-backdrop-filter: blur(28px) saturate(150%);
+}
+
+/* Subtle entrance for the whole stage */
+@keyframes stageFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.stage-fade {
+  animation: stageFade 1.6s ease-out both;
+}
+
+/* A drifting film-grain-ish vignette layer behind everything */
+.bg-aurora {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(120% 90% at 28% 18%, rgba(58, 78, 120, 0.18), transparent 55%),
+    radial-gradient(110% 80% at 82% 78%, rgba(150, 60, 48, 0.14), transparent 55%),
+    radial-gradient(140% 120% at 50% 50%, #0c0e13 0%, #07080b 60%, #050609 100%);
+}
+
+.bg-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(120% 100% at 50% 42%, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+.text-balance {
+  text-wrap: balance;
+}
