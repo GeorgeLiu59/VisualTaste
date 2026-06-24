@@ -79,7 +79,7 @@ export function AssetAttachment({
     const lift = x2d + Math.sin(t * 0.5 + swayPhase) * containerRadius * 0.015
     const rise = y2d + Math.cos(t * 0.45 + bobPhase) * containerRadius * 0.015
     const depth =
-      containerRadius * (1.16 + (isHovered ? 0.13 : 0)) +
+      containerRadius * (1.22 + (isHovered ? 0.13 : 0)) +
       depthOffset +
       Math.sin(t * 0.4 + bobPhase) * containerRadius * 0.02
 
@@ -89,19 +89,20 @@ export function AssetAttachment({
       .addScaledVector(camY.current, rise)
       .addScaledVector(camZ.current, depth)
 
-    // The driver reference (the one that caused the beat) rides the leading tip
-    // of the drop: push it along the stretch axis (projected onto the camera
-    // plane) by driverLead, then it eases back into the cluster as the drop
-    // rounds out. One smooth ramp — no per-frame lunge envelope.
+    // The driver reference (the one that caused the beat) rides OUT to the
+    // border in the exact direction the body is about to travel (driverAxis,
+    // projected onto the camera plane) by driverLead, then eases back into the
+    // cluster as the drop rounds out. One smooth ramp — no lunge envelope.
     if (isUser) {
       const morph = useUserMorphStore.getState()
       if (morph.active && morph.driverId === asset.id && morph.driverLead > 0.001) {
-        const ax = morph.stretchAxis
+        const ax = morph.driverAxis
         pullW.current.set(ax[0], ax[1], ax[2])
         const sx = pullW.current.dot(camX.current)
         const sy = pullW.current.dot(camY.current)
         const sz = pullW.current.dot(camZ.current) * 0.5
-        const lead = morph.driverLead * containerRadius * 0.9
+        // ride to roughly the bubble border (≈ containerRadius along the axis)
+        const lead = morph.driverLead * containerRadius * 1.15
         out.current
           .addScaledVector(camX.current, sx * lead)
           .addScaledVector(camY.current, sy * lead)

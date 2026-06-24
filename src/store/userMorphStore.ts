@@ -31,15 +31,17 @@ interface UserMorphState {
   stretchAxis: V3
   /** Elongation amount (0 = round; ~0.34 peak). */
   stretchAmt: number
-  /** The reference driving this beat (rides the leading tip). */
+  /** The reference driving this beat (rides to the border). */
   driverId: string | null
-  /** 0..1 how far the driver tile leads ahead of the cluster. */
+  /** 0..1 how far the driver tile has ridden out toward the border. */
   driverLead: number
+  /** World unit direction the driver tile rides (add: travel dir; remove: out). */
+  driverAxis: V3
   /** The driver's accent, bled into the glass tint during the beat. */
   impactColor: string | null
   setMorph: (active: boolean, pos: V3, e: number) => void
   setStretch: (axis: V3, amt: number) => void
-  setDriver: (id: string | null, lead: number) => void
+  setDriver: (id: string | null, lead: number, axis?: V3) => void
   setImpactColor: (color: string | null) => void
   clear: () => void
 }
@@ -52,10 +54,12 @@ export const useUserMorphStore = create<UserMorphState>((set) => ({
   stretchAmt: 0,
   driverId: null,
   driverLead: 0,
+  driverAxis: [0, 1, 0],
   impactColor: null,
   setMorph: (active, pos, e) => set({ active, pos, e }),
   setStretch: (stretchAxis, stretchAmt) => set({ stretchAxis, stretchAmt }),
-  setDriver: (driverId, driverLead) => set({ driverId, driverLead }),
+  setDriver: (driverId, driverLead, axis) =>
+    set(axis ? { driverId, driverLead, driverAxis: axis } : { driverId, driverLead }),
   setImpactColor: (impactColor) => set({ impactColor }),
   clear: () =>
     set({
@@ -65,6 +69,7 @@ export const useUserMorphStore = create<UserMorphState>((set) => ({
       stretchAxis: [0, 1, 0],
       driverId: null,
       driverLead: 0,
+      driverAxis: [0, 1, 0],
       impactColor: null,
     }),
 }))

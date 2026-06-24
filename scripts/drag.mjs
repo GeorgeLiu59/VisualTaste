@@ -24,10 +24,13 @@ await page.waitForTimeout(200)
 await page.screenshot({ path: '.preview/drag-mid.png' })
 await page.mouse.up()
 
-// the "liquid drop" beat (~3.2s): hold (pre-reach) → eased stretch-migrate → settle.
-await page.waitForTimeout(280) // ~hold: body parked, glass pre-reaching toward the new tile
-await page.screenshot({ path: '.preview/drag-hold.png' })
-const holdPhase = await page.evaluate(() => window.tasteStore.getState().absorbPhase)
+// staged "liquid drop" (~4.2s): land → sit (~1s) → tile rides to border → stretch+move → settle.
+await page.waitForTimeout(600) // ~sit: new tile landed, bubble parked, no stretch
+await page.screenshot({ path: '.preview/drag-sit.png' })
+const sitPhase = await page.evaluate(() => window.tasteStore.getState().absorbPhase)
+
+await page.waitForTimeout(700) // ~lead: driver tile riding out to the border
+await page.screenshot({ path: '.preview/drag-lead.png' })
 
 await page.waitForTimeout(1300) // ~mid-migrate: peak teardrop stretch, body travelling
 const migA = await page.evaluate(() => window.tasteStore.getState())
@@ -36,7 +39,7 @@ await page.screenshot({ path: '.preview/drag-migrate.png' })
 await page.waitForTimeout(1800) // settle
 const after = await page.evaluate(() => window.tasteStore.getState().activeAssetIds)
 console.log('before:', before, 'after:', JSON.stringify(after))
-console.log('holdPhase:', holdPhase, '(expect "hold")')
+console.log('sitPhase:', sitPhase, '(expect "hold")')
 console.log('migratePhase:', migA.absorbPhase, '(expect "migrate")')
 console.log('ERRORS:', errors.length)
 errors.slice(0, 10).forEach((e) => console.log(' -', e.slice(0, 160)))

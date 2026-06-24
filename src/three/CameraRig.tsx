@@ -28,7 +28,10 @@ function baseFraming(): { pos: V3; look: V3; lambda: number } {
     const look: V3 = [(userW[0] + aW[0]) / 2, (userW[1] + aW[1]) / 2 + 0.1, (userW[2] + aW[2]) / 2]
     return { pos: [look[0] + 0.5, look[1] + 1.0, look[2] + 11.5], look, lambda: 1.8 }
   }
-  return { pos: [0.7, 1.9, 18.5], look: [0.5, 0.95, 0.2], lambda: 1.6 }
+  // build: follow the user lens so it stays centred + in the DOF focal plane as
+  // it drifts toward its taste centroid (was a fixed origin framing, which let
+  // the lens slide off-centre and out of focus as references were added).
+  return { pos: [userW[0] + 0.2, userW[1] + 0.95, userW[2] + 17.8], look: userW, lambda: 1.6 }
 }
 
 /**
