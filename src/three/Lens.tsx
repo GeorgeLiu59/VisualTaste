@@ -194,6 +194,9 @@ export interface LensProps {
   opacity?: number
   /** 0..1 — how much the lens holds reference tiles; dials the rim down so tiles read. */
   tilePresence?: number
+  /** Multiplier on the fresnel rim-glow intensity (1 = default). Lower = quieter,
+   *  more ambient edge glow (e.g. to keep a warm lens from reading as hot red). */
+  rimScale?: number
   /**
    * Marks this as the user's lens. When true the lens reads the userMorphStore
    * each frame: during an absorb morph it sits on the already-eased world
@@ -220,6 +223,7 @@ export function Lens({
   showParticles = true,
   opacity = 1,
   tilePresence = 0,
+  rimScale = 1,
   isUser = false,
 }: LensProps) {
   const group = useRef<THREE.Group>(null!)
@@ -296,7 +300,7 @@ export function Lens({
     // When the lens holds reference tiles, dial the silhouette rim down so its
     // additive glow stops washing over the tiles; the core glow (behind the
     // tiles) carries the luminous body instead. Empty lens + anchors keep 1.7.
-    const rimDial = 1 - 0.3 * clamp(tilePresence)
+    const rimDial = (1 - 0.3 * clamp(tilePresence)) * rimScale
     rimMat.uniforms.uIntensity.value = damp(
       rimMat.uniforms.uIntensity.value,
       (1.7 * rimDial + brightness * 1.9 + impulse.current * 1.6 * rimDial) * opacity,

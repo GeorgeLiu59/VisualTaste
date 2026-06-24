@@ -162,6 +162,7 @@ function SceneContent() {
         stretch={TARANTINO_STRETCH}
         irregular={0.06}
         geometrySeed={5}
+        rimScale={0.4}
       />
       <ProfileAttachments
         center={tarantinoWorld}
