@@ -24,17 +24,17 @@ await page.waitForTimeout(200)
 await page.screenshot({ path: '.preview/drag-mid.png' })
 await page.mouse.up()
 
-// the cinematic absorb beat (~3.4s): rack → survey reveal → slow eased morph.
+// the cinematic absorb beat (~4.75s): rack → survey reveal → slow eased morph.
 // capture the held comparison beat and a mid-migration frame, then the settle.
-await page.waitForTimeout(900) // ~survey: axis labels up, affinity threads, dual halos
+await page.waitForTimeout(1200) // ~survey: axis labels up, affinity threads, dual halos
 await page.screenshot({ path: '.preview/drag-survey.png' })
 const surveyPhase = await page.evaluate(() => window.tasteStore.getState().absorbPhase)
 
-await page.waitForTimeout(1600) // ~migrate: lens mid-travel, threads retracting
+await page.waitForTimeout(2000) // ~migrate (mid): lens travelling/recoloring/reshaping
 const migA = await page.evaluate(() => window.tasteStore.getState())
 await page.screenshot({ path: '.preview/drag-migrate.png' })
 
-await page.waitForTimeout(1400) // settle
+await page.waitForTimeout(2000) // settle
 const after = await page.evaluate(() => window.tasteStore.getState().activeAssetIds)
 console.log('before:', before, 'after:', JSON.stringify(after))
 console.log('surveyPhase:', surveyPhase, '(expect "survey")')

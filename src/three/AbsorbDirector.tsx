@@ -11,19 +11,20 @@ type V3 = [number, number, number]
 
 // ---------------------------------------------------------------------------
 // Absorb beat timing (ms), driven off a single frame clock (absorbStartedAt).
-//   rack    0 .. 500      present the reference, rack focus onto it
-//   survey  500 .. 1700   reveal + compare the whole taste-space (held)
-//   commit  @1700         fold pending into the profile, capture morph endpoints
-//   migrate 1700 .. 3050  slow eased lens migration to its new state
-//   settle  3050 .. 3300  fx/camera ease back, then release
+//   rack    0 .. 600      present the reference, rack focus onto it
+//   survey  600 .. 2000   reveal + compare the whole taste-space (held)
+//   commit  @2000         fold pending into the profile, capture morph endpoints
+//   migrate 2000 .. 4400  slow eased lens migration — long enough to read the
+//                         lens travel, recolor, and reshape as it happens
+//   settle  4400 .. 4750  fx/camera ease back, then release
 // ---------------------------------------------------------------------------
-const RACK_MS = 500
-const SURVEY_MS = 1200
-const MIGRATE_MS = 1350
-const SETTLE_MS = 250
-const COMMIT_AT = RACK_MS + SURVEY_MS // 1700
-const MIGRATE_END = COMMIT_AT + MIGRATE_MS // 3050
-const TOTAL_MS = MIGRATE_END + SETTLE_MS // 3300
+const RACK_MS = 600
+const SURVEY_MS = 1400
+const MIGRATE_MS = 2400
+const SETTLE_MS = 350
+const COMMIT_AT = RACK_MS + SURVEY_MS // 2000
+const MIGRATE_END = COMMIT_AT + MIGRATE_MS // 4400
+const TOTAL_MS = MIGRATE_END + SETTLE_MS // 4750
 
 /** Resting DOF focus point (matches the original static target). */
 const STATIC_FOCUS: V3 = [0.5, 0.95, 0.2]

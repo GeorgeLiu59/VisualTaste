@@ -279,9 +279,9 @@ export function Lens({
     const breathe = 1 + Math.sin(state.clock.elapsedTime * 0.5 + geometrySeed) * 0.018
     const pulse = 1 + impulse.current * 0.14
     const s = scale * breathe * pulse
-    // ease scale alongside position during morph so a count-driven scale change
-    // doesn't pop when the pending asset commits; otherwise damp as before.
-    const scaleLambda = morphing ? 9 : 6
+    // ease scale gradually during morph so it grows/reshapes *with* the slow
+    // position travel and recolor (not a fast snap); normal damp otherwise.
+    const scaleLambda = morphing ? 2.8 : 6
     g.scale.x = damp(g.scale.x, s * stretch[0], scaleLambda, dt)
     g.scale.y = damp(g.scale.y, s * stretch[1], scaleLambda, dt)
     g.scale.z = damp(g.scale.z, s * stretch[2], scaleLambda, dt)
