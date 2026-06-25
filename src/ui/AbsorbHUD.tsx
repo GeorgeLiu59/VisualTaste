@@ -49,7 +49,7 @@ export function AbsorbHUD() {
     if (!pendingAssetId) return null
     const solo = deriveUserProfile([pendingAssetId])
     return {
-      word: microLabelFor(pendingAssetId, false),
+      word: microLabelFor(pendingAssetId),
       nolan: computeSimilarity(solo, nolanProfile),
       tara: computeSimilarity(solo, tarantinoProfile),
       label: getAsset(pendingAssetId).label,

@@ -166,6 +166,7 @@ function MoodPane({
   const grp = useRef<THREE.Group>(null!)
   const imgMat = useRef<THREE.MeshBasicMaterial>(null!)
   const sheen = useRef<THREE.Mesh>(null!)
+  const texRef = useRef<THREE.Texture | null>(null)
 
   useEffect(() => {
     let active = true
@@ -175,13 +176,19 @@ function MoodPane({
       t.minFilter = THREE.LinearMipmapLinearFilter
       t.magFilter = THREE.LinearFilter
       t.generateMipmaps = true
-      if (active) setTex(t)
-      else t.dispose()
+      if (active) {
+        texRef.current = t
+        setTex(t)
+      } else t.dispose()
     }
     const loader = new THREE.TextureLoader()
     loader.load(src, apply, undefined, () => loader.load(fallbackSrc, apply))
+    // dispose the loaded pane texture on unmount (MoodSplit unmounts on leaving
+    // chat) / before a reload, so each moodio session doesn't leak 4 textures.
     return () => {
       active = false
+      texRef.current?.dispose()
+      texRef.current = null
     }
   }, [src, fallbackSrc])
 
@@ -202,6 +209,10 @@ function MoodPane({
   }
 
   useFrame((state, dt) => {
+    // While faded out (idle / splitting / generating) nothing below produces a
+    // visible change — skip the no-op damp + sin/cos work on all 4 panes. The
+    // fade-down on un-reveal still runs until opacity settles; reveal never skips.
+    if (!revealed && imgMat.current && imgMat.current.opacity < 0.001) return
     const t = revealed ? 1 : 0
     if (imgMat.current) imgMat.current.opacity = damp(imgMat.current.opacity, t, 5, dt)
     if (grp.current) {

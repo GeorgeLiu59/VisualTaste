@@ -54,7 +54,7 @@ function jaccard(a: string[], b: string[]) {
 // Color helpers
 // ---------------------------------------------------------------------------
 
-export function hexToRgb(hex: string): [number, number, number] {
+function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '')
   const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h
   const n = parseInt(full, 16)
@@ -83,7 +83,7 @@ function paletteOverlap(a: string[], b: string[]) {
 // Profile derivations
 // ---------------------------------------------------------------------------
 
-export const DEFAULT_PALETTE = userProfileInitial.palette
+const DEFAULT_PALETTE = userProfileInitial.palette
 
 export function computeProfilePosition(activeAssets: Asset[]): Vec3 {
   if (activeAssets.length === 0) return { x: 0, y: 0, z: 0 }
@@ -165,7 +165,7 @@ export type LensShape = 'empty' | 'coherent' | 'split'
 const NOLAN_TAGS = ['cold', 'architectural', 'monumental', 'restrained', 'controlled', 'geometry', 'scale']
 const TARANTINO_TAGS = ['retro', 'saturated', 'theatrical', 'electric', 'kinetic', 'neon', 'nightlife']
 
-export function isNolanLike(a: Asset) {
+function isNolanLike(a: Asset) {
   return a.tags.some((t) => NOLAN_TAGS.includes(t))
 }
 
@@ -179,25 +179,6 @@ export function computeLensShape(activeAssets: Asset[]): LensShape {
   const hasTarantino = activeAssets.some(isTarantinoLike)
   if (hasNolan && hasTarantino) return 'split'
   return 'coherent'
-}
-
-// NOTE: the live lens no longer renders a separate "split lobe" — it always
-// stays one unified body. These warm/cool cluster centers are kept as the
-// seed for the future "generate" flow, where the profile cleaves into taste
-// sub-bubbles (each meshing with a prompt to produce an image option).
-
-/** Center (taste-space) of the warm, Tarantino-leaning cluster, if any. */
-export function computeWarmLobeCenter(activeAssets: Asset[]): Vec3 | null {
-  const warm = activeAssets.filter(isTarantinoLike)
-  if (warm.length === 0) return null
-  return computeProfilePosition(warm)
-}
-
-/** Center (taste-space) of the cool, non-warm cluster, if any. */
-export function computeCoolBodyCenter(activeAssets: Asset[]): Vec3 | null {
-  const cool = activeAssets.filter((a) => !isTarantinoLike(a))
-  if (cool.length === 0) return null
-  return computeProfilePosition(cool)
 }
 
 // ---------------------------------------------------------------------------
@@ -214,11 +195,22 @@ export interface DerivedUserProfile extends Profile {
   displayPosition: Vec3
 }
 
+// deriveUserProfile is called every frame by the camera rig (and the absorb
+// director in build mode) to place + frame the lens. The result is a pure
+// function of the active id set, and the store always hands out a NEW array
+// reference when that set changes (and keeps the same one otherwise). A one-entry
+// cache keyed on the array identity therefore collapses the per-frame recompute
+// to a single derivation per change — identical output, none of the per-frame
+// map/sort/Set allocation.
+let _profileIds: string[] | null = null
+let _profile: DerivedUserProfile | null = null
+
 export function deriveUserProfile(activeAssetIds: string[]): DerivedUserProfile {
+  if (activeAssetIds === _profileIds && _profile) return _profile
   const activeAssets = activeAssetIds.map(getAsset)
   const tags = Array.from(new Set(activeAssets.flatMap((a) => a.tags)))
   const position = computeProfilePosition(activeAssets)
-  return {
+  const profile: DerivedUserProfile = {
     ...userProfileInitial,
     position,
     displayPosition: clampAwayFromAnchors(position),
@@ -227,6 +219,9 @@ export function deriveUserProfile(activeAssetIds: string[]): DerivedUserProfile 
     tags,
     shape: computeLensShape(activeAssets),
   }
+  _profileIds = activeAssetIds
+  _profile = profile
+  return profile
 }
 
 // ---------------------------------------------------------------------------
@@ -265,7 +260,7 @@ const LABEL_BY_ASSET: Record<string, string> = {
   'palette-quiet-earth': 'palette',
 }
 
-export function microLabelFor(assetId: string, _causedSplit: boolean): string {
+export function microLabelFor(assetId: string): string {
   // Note: we no longer surface a special "split" word — the lens stays one
   // unified body. Taste sub-clusters are reserved for the (future) generate
   // flow, where the profile cleaves into sub-bubbles per prompt.

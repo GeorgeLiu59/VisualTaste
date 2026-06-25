@@ -1,7 +1,6 @@
 import { create } from 'zustand'
-import { getAsset } from '../data/tasteData'
 import { CHAT_SEED_ASSET_IDS } from '../data/chatData'
-import { computeLensShape, deriveUserProfile, microLabelFor, toWorld } from '../lib/taste'
+import { deriveUserProfile, microLabelFor, toWorld } from '../lib/taste'
 import { useUserMorphStore } from './userMorphStore'
 import { useCameraStore } from './cameraStore'
 import { useChatStore } from './chatStore'
@@ -91,18 +90,14 @@ export const useTasteStore = create<TasteState>((set, get) => {
     }
   }
 
-  // Fold an asset into the profile: append, bump the ripple, flash a label
-  // (and detect whether it just fractured the taste into a split). Shared by
-  // the instant addAsset path and the choreographed beginAbsorb path.
+  // Fold an asset into the profile: append, bump the ripple, flash its label.
+  // Shared by the instant addAsset path and the choreographed beginAbsorb path.
   const applyAsset = (id: string) => {
     const { activeAssetIds } = get()
     if (activeAssetIds.includes(id)) return
-    const before = computeLensShape(activeAssetIds.map(getAsset))
     const next = [...activeAssetIds, id]
-    const after = computeLensShape(next.map(getAsset))
-    const causedSplit = before !== 'split' && after === 'split'
     set((s) => ({ activeAssetIds: next, rippleSeed: s.rippleSeed + 1 }))
-    flashLabel(microLabelFor(id, causedSplit))
+    flashLabel(microLabelFor(id))
   }
 
   // Drop an asset from the profile (instant filter + ripple).
