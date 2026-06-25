@@ -1,22 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Billboard, RoundedBox } from '@react-three/drei'
+import { Billboard } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { damp } from '../lib/taste'
-import { getAsset } from '../data/tasteData'
+import { getAsset, type Asset } from '../data/tasteData'
 import { useChatStore, type ChatStage } from '../store/chatStore'
 import { moodSubsets, type MoodSubset } from '../data/chatData'
-import { Lens, makeGlowMaterial, rimFrag } from './Lens'
-import { ProfileAttachments } from './ProfileAttachments'
+import { Lens } from './Lens'
+import { AssetVisual, assetSize } from './AssetVisual'
 import { softDot } from './softDot'
 
 // ---------------------------------------------------------------------------
 // Moodio "generate" beat. The user's lens slowly cleaves into 4 mood-cluster
-// sub-bubbles that drift to the quadrants (splitting). Each carries the actual
-// references for its category (image / text / palette tiles, split off from the
-// original lens) and rotates + pulses (generating). Then each dissolves as it
-// reveals its image inside a rectangular glass frame that matches the bubble
-// material (revealed). Frame-driven off chatStore — no React churn.
+// sub-bubbles that drift to the quadrants (splitting). Each is a roomy glass
+// bubble holding the actual references for its category (image / text / palette
+// tiles, split off from the original lens), gently floating + rotating
+// (generating). Then each dissolves and reveals its image, presented clean —
+// just the image, no frame (revealed). Frame-driven off chatStore.
 // ---------------------------------------------------------------------------
 
 type V3 = [number, number, number]
@@ -27,14 +27,12 @@ const DX = 7.0
 const DY = 4.6
 const GRID_Y = 1.0
 
-// sub-bubble size while generating (kept modest — they settle smaller after the
-// split, per the gentle, aesthetic read).
-const BUBBLE_SCALE = 2.4
+// sub-bubble size while generating — roomy so its references spread out.
+const BUBBLE_SCALE = 3.4
 
-// result image box (large — the bubble dissolves into a glass frame)
+// result image box (large)
 const BOX_W = 10.0
 const BOX_H = 6.5
-const FRAME_M = 0.5 // glass frame margin around the image (each side)
 
 /** order 0..3 → TL, TR, BL, BR (relative to the lens center). */
 function quadrant(order: number, userWorld: V3): V3 {
@@ -96,19 +94,18 @@ function Entity({
     const target = released ? quadrant(subset.order, userWorld) : userWorld
     const h = holder.current
     if (h) {
-      // low lambda → a slow, eased drift to the quadrant
       h.position.x = damp(h.position.x, target[0], 1.3, dt)
       h.position.y = damp(h.position.y, target[1], 1.3, dt)
       h.position.z = damp(h.position.z, target[2], 1.3, dt)
     }
 
-    // Only the glass bubble spins + pulses (its reference tiles stay billboarded
-    // and readable — they live in `holder`, not the spinning `spinner`).
+    // Only the glass bubble spins + pulses (its reference tiles float + stay
+    // billboarded/readable — they live in `holder`, not the spinning `spinner`).
     const sp = spinner.current
     if (sp) {
       const working = cs.stage === 'splitting' || cs.stage === 'generating'
       if (working) {
-        sp.rotation.y += dt * (0.7 + subset.order * 0.08)
+        sp.rotation.y += dt * (0.6 + subset.order * 0.07)
         sp.scale.setScalar(1 + Math.sin(state.clock.elapsedTime * 2.6 + subset.order * 1.3) * 0.06)
       } else {
         sp.rotation.y = damp(sp.rotation.y, 0, 4, dt)
@@ -119,7 +116,7 @@ function Entity({
 
   return (
     <group ref={holder} position={userWorld}>
-      {/* the glass bubble (spins + pulses); unmounts on reveal as the frame takes over */}
+      {/* the glass bubble (spins + pulses); unmounts on reveal */}
       {!revealed && (
         <group ref={spinner}>
           <Lens
@@ -137,49 +134,77 @@ function Entity({
         </group>
       )}
 
-      {/* the category's actual references, split off into this bubble */}
-      {split && !revealed && (
-        <ProfileAttachments center={[0, 0, 0]} radius={BUBBLE_SCALE * 0.82} assets={memberAssets} emphasis={1} />
-      )}
+      {/* the category's references, spread out + gently floating inside the bubble */}
+      {split && !revealed && memberAssets.map((a, i) => (
+        <FloatingTile key={a.id} asset={a} index={i} total={memberAssets.length} radius={BUBBLE_SCALE} />
+      ))}
 
-      <MoodPane src={subset.resultSrc} fallbackSrc={subset.fallbackSrc} accent={subset.accent} revealed={revealed} />
+      <MoodPane src={subset.resultSrc} fallbackSrc={subset.fallbackSrc} revealed={revealed} />
     </group>
   )
 }
 
 /**
- * The staged result image, billboarded so it stays readable as the camera
- * orbits, wrapped in a rectangular glass frame that matches the bubble material:
- * a clear-coated translucent slab with the bubble's fresnel rim glow on its
- * rounded edges (so it reads as the bubble re-formed around the image), plus a
- * soft accent halo. The image "develops" in (opacity + a slight scale settle).
- * Loads its texture imperatively (contain-fit), falling back to an existing
- * still until the staged result image exists.
+ * One reference tile floating inside a sub-bubble: laid out on a roomy
+ * camera-facing ring (so the references don't crowd), billboarded for
+ * legibility, drifting gently so the cluster feels alive rather than static.
  */
-function MoodPane({
-  src,
-  fallbackSrc,
-  accent,
-  revealed,
-}: {
-  src: string
-  fallbackSrc: string
-  accent: string
-  revealed: boolean
-}) {
+function FloatingTile({ asset, index, total, radius }: { asset: Asset; index: number; total: number; radius: number }) {
+  const ref = useRef<THREE.Group>(null!)
+  const [w, h] = assetSize(asset)
+  const tileScale = radius * 0.32
+
+  const layout = useMemo(() => {
+    // even ring placement; single tile sits centered
+    const ang = total <= 1 ? 0 : (index / total) * Math.PI * 2 - Math.PI / 2
+    const spreadR = total <= 1 ? 0 : radius * 0.6
+    return { bx: Math.cos(ang) * spreadR, by: Math.sin(ang) * spreadR, ph: index * 1.7, ph2: index * 2.3 + 1 }
+  }, [index, total, radius])
+
+  const camX = useRef(new THREE.Vector3())
+  const camY = useRef(new THREE.Vector3())
+  const camZ = useRef(new THREE.Vector3())
+  const out = useRef(new THREE.Vector3())
+  const cur = useRef(0.0001)
+
+  useFrame((state, dt) => {
+    const g = ref.current
+    if (!g) return
+    const t = state.clock.elapsedTime
+    state.camera.matrixWorld.extractBasis(camX.current, camY.current, camZ.current)
+    // gentle drift so the references aren't static
+    const lift = layout.bx + Math.sin(t * 0.5 + layout.ph) * radius * 0.06
+    const rise = layout.by + Math.cos(t * 0.42 + layout.ph2) * radius * 0.06
+    const depth = radius * 0.12
+    out.current
+      .set(0, 0, 0)
+      .addScaledVector(camX.current, lift)
+      .addScaledVector(camY.current, rise)
+      .addScaledVector(camZ.current, depth)
+    g.position.copy(out.current)
+    // grow in
+    cur.current = damp(cur.current, tileScale, 7, dt)
+    g.scale.setScalar(cur.current)
+  })
+
+  return (
+    <group ref={ref} scale={0.0001}>
+      <AssetVisual asset={asset} sizeW={w} sizeH={h} opacity={0.96} />
+    </group>
+  )
+}
+
+/**
+ * The staged result image, presented clean — just the contain-fit image with a
+ * soft glass sheen drifting across it (no frame/border). It "develops" in on
+ * reveal (opacity + a slight scale settle). Loads its texture imperatively,
+ * falling back to an existing still until the staged result image exists.
+ */
+function MoodPane({ src, fallbackSrc, revealed }: { src: string; fallbackSrc: string; revealed: boolean }) {
   const [tex, setTex] = useState<THREE.Texture | null>(null)
   const grp = useRef<THREE.Group>(null!)
   const imgMat = useRef<THREE.MeshBasicMaterial>(null!)
-  const glassMat = useRef<THREE.MeshPhysicalMaterial>(null!)
-  const haloMat = useRef<THREE.MeshBasicMaterial>(null!)
   const sheen = useRef<THREE.Mesh>(null!)
-
-  // the bubble's fresnel rim glow, reused on the rectangular frame's edges
-  const rimMat = useMemo(() => {
-    const m = makeGlowMaterial(accent, rimFrag, 2.0)
-    m.uniforms.uIntensity.value = 0 // start dark; fades up on reveal
-    return m
-  }, [accent])
 
   useEffect(() => {
     let active = true
@@ -214,73 +239,33 @@ function MoodPane({
       w = BOX_H * a
     }
   }
-  const fw = w + FRAME_M * 2
-  const fh = h + FRAME_M * 2
 
   useFrame((state, dt) => {
     const t = revealed ? 1 : 0
     if (imgMat.current) imgMat.current.opacity = damp(imgMat.current.opacity, t, 5, dt)
-    if (glassMat.current) glassMat.current.opacity = damp(glassMat.current.opacity, t * 0.24, 5, dt)
-    if (haloMat.current) haloMat.current.opacity = damp(haloMat.current.opacity, t * 0.18, 5, dt)
-    rimMat.uniforms.uIntensity.value = damp(rimMat.uniforms.uIntensity.value, t * 1.6, 5, dt)
     if (grp.current) {
       const s = damp(grp.current.scale.x, revealed ? 1 : 1.06, 5, dt)
       grp.current.scale.setScalar(s)
     }
-    // glass sheen drifts across the image as the camera orbits
     if (sheen.current) {
       const cam = state.camera.position
       const ang = Math.atan2(cam.x, cam.z)
       sheen.current.position.x = Math.sin(ang) * w * 0.18
       const sm = sheen.current.material as THREE.MeshBasicMaterial
-      sm.opacity = damp(sm.opacity, t * 0.1, 5, dt)
+      sm.opacity = damp(sm.opacity, t * 0.09, 5, dt)
     }
   })
 
   return (
     <Billboard>
       <group ref={grp}>
-        {/* soft outer accent halo */}
-        <mesh position={[0, 0, -0.5]} renderOrder={8}>
-          <planeGeometry args={[BOX_W + 1.8, BOX_H + 1.8]} />
-          <meshBasicMaterial
-            ref={haloMat}
-            color={accent}
-            transparent
-            opacity={0}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-            depthTest={false}
-            toneMapped={false}
-          />
-        </mesh>
-        {/* glass frame body — clear-coated translucent slab (matches the bubble) */}
-        <RoundedBox args={[fw, fh, 0.5]} radius={0.34} smoothness={4} position={[0, 0, -0.15]} renderOrder={9}>
-          <meshPhysicalMaterial
-            ref={glassMat}
-            color="#cfe0f2"
-            transparent
-            opacity={0}
-            roughness={0.05}
-            metalness={0}
-            clearcoat={1}
-            clearcoatRoughness={0.06}
-            transmission={0}
-            ior={1.3}
-            depthWrite={false}
-          />
-        </RoundedBox>
-        {/* fresnel rim glow on the frame's rounded edges (the bubble's rim) */}
-        <RoundedBox args={[fw, fh, 0.5]} radius={0.34} smoothness={4} scale={1.018} position={[0, 0, -0.15]} renderOrder={10}>
-          <primitive object={rimMat} attach="material" />
-        </RoundedBox>
         {tex && (
           <>
-            <mesh renderOrder={11} position={[0, 0, 0.2]}>
+            <mesh renderOrder={11}>
               <planeGeometry args={[w, h]} />
               <meshBasicMaterial ref={imgMat} map={tex} transparent opacity={0} toneMapped={false} depthTest={false} />
             </mesh>
-            <mesh ref={sheen} renderOrder={12} scale={[w * 0.85, h * 0.5, 1]} position={[0, h * 0.18, 0.22]}>
+            <mesh ref={sheen} renderOrder={12} scale={[w * 0.85, h * 0.5, 1]} position={[0, h * 0.18, 0.01]}>
               <planeGeometry args={[1, 1]} />
               <meshBasicMaterial
                 map={softDot}
