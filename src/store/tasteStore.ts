@@ -1,9 +1,12 @@
 import { create } from 'zustand'
 import { getAsset } from '../data/tasteData'
+import { CHAT_SEED_ASSET_IDS } from '../data/chatData'
 import { computeLensShape, deriveUserProfile, microLabelFor, toWorld } from '../lib/taste'
 import { useUserMorphStore } from './userMorphStore'
+import { useCameraStore } from './cameraStore'
+import { useChatStore } from './chatStore'
 
-export type Mode = 'build' | 'compare' | 'unfold'
+export type Mode = 'build' | 'compare' | 'unfold' | 'chat'
 export type AnchorId = 'nolan' | 'tarantino'
 
 /**
@@ -47,6 +50,9 @@ interface TasteState {
   absorbStartedAt: number | null
   /** Old bubble centroid (world) — held while the drop pre-reaches. */
   heldCenterW: V3 | null
+
+  /** Asset set captured on entering chat mode, restored on exit. */
+  preChatAssetIds: string[]
 
   addAsset: (id: string) => void
   removeAsset: (id: string) => void
@@ -127,6 +133,7 @@ export const useTasteStore = create<TasteState>((set, get) => {
     releasingAssetId: null,
     absorbStartedAt: null,
     heldCenterW: null,
+    preChatAssetIds: [],
 
     addAsset: (id) => applyAsset(id),
 
@@ -144,7 +151,32 @@ export const useTasteStore = create<TasteState>((set, get) => {
 
     setHover: (id) => set({ hoveredAssetId: id }),
     setDragging: (id) => set({ draggingAssetId: id }),
-    setMode: (mode) => set({ mode }),
+    setMode: (mode) => {
+      const prev = get().mode
+      if (mode === prev) return
+      // Entering chat: clear any in-flight absorb + camera goal so the chat
+      // framing wins, stash the current set, and seed the FULL profile (every
+      // image/text/palette) so the lens reads as a rich, mixed taste. Reset the
+      // chat beat to idle. The stashed set is restored on exit (non-destructive).
+      if (mode === 'chat') {
+        get().endAbsorb()
+        useCameraStore.getState().setGoal(null)
+        useChatStore.getState().reset()
+        set({
+          mode,
+          preChatAssetIds: get().activeAssetIds,
+          activeAssetIds: CHAT_SEED_ASSET_IDS,
+        })
+        return
+      }
+      // Leaving chat: restore the pre-chat set and reset the beat.
+      if (prev === 'chat') {
+        useChatStore.getState().reset()
+        set({ mode, activeAssetIds: get().preChatAssetIds, preChatAssetIds: [] })
+        return
+      }
+      set({ mode })
+    },
     setCompareTarget: (t) => set({ compareTarget: t }),
     setMicroLabel: (label) => flashLabel(label),
     setWalkthroughActive: (v) => set({ walkthroughActive: v }),
@@ -152,6 +184,7 @@ export const useTasteStore = create<TasteState>((set, get) => {
 
     reset: () => {
       get().endAbsorb()
+      useChatStore.getState().reset()
       set({
         activeAssetIds: [],
         hoveredAssetId: null,
@@ -160,6 +193,7 @@ export const useTasteStore = create<TasteState>((set, get) => {
         compareTarget: 'nolan',
         microLabel: null,
         showFinale: false,
+        preChatAssetIds: [],
       })
     },
 

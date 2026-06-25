@@ -25,6 +25,7 @@ import {
   toWorld,
 } from '../lib/taste'
 import { useTasteStore } from '../store/tasteStore'
+import { useChatStore } from '../store/chatStore'
 import { Lens } from './Lens'
 import { ProfileAttachments } from './ProfileAttachments'
 import { UnfoldView } from './UnfoldView'
@@ -32,6 +33,7 @@ import { AxisLabels } from './AxisLabels'
 import { CameraRig } from './CameraRig'
 import { AbsorbDirector } from './AbsorbDirector'
 import { AffinityLines } from './AffinityLines'
+import { MoodSplit } from './MoodSplit'
 
 function SceneContent() {
   const activeAssetIds = useTasteStore((s) => s.activeAssetIds)
@@ -40,6 +42,7 @@ function SceneContent() {
   const hoveredAssetId = useTasteStore((s) => s.hoveredAssetId)
   const draggingAssetId = useTasteStore((s) => s.draggingAssetId)
   const rippleSeed = useTasteStore((s) => s.rippleSeed)
+  const chatStage = useChatStore((s) => s.stage)
 
   const user = useMemo(() => deriveUserProfile(activeAssetIds), [activeAssetIds])
   const activeAssets = useMemo(() => activeAssetIds.map(getAsset), [activeAssetIds])
@@ -59,10 +62,22 @@ function SceneContent() {
 
   const count = activeAssets.length
   const isUnfold = mode === 'unfold'
+  const isChat = mode === 'chat'
+  // Once the prompt is submitted the lens cleaves into the 4 quadrant panes
+  // (MoodSplit), so the main user lens collapses out of the way.
+  const chatSplit = isChat && chatStage !== 'idle'
   // Anchors (and the cross-space comparison visuals) belong to Compare mode.
   // Build mode is just "you".
   const showAnchors = mode === 'compare'
-  const userScale = isUnfold ? 0.2 : count === 0 ? 0.82 : 0.95 + Math.min(count, 6) * 0.07
+  const userScale = isUnfold
+    ? 0.2
+    : chatSplit
+      ? 0.05
+      : isChat
+        ? 1.5
+        : count === 0
+          ? 0.82
+          : 0.95 + Math.min(count, 6) * 0.07
 
   const leansNolan = user.position.y > 0.2 && user.position.x < 0.05
   const userStretch: [number, number, number] =
@@ -168,9 +183,12 @@ function SceneContent() {
         tilePresence={count > 0 && !isUnfold ? 1 : 0}
         isUser
       />
-      {count > 0 && !isUnfold && (
+      {count > 0 && !isUnfold && !chatSplit && (
         <ProfileAttachments center={userWorld} radius={userRadius} assets={activeAssets} emphasis={1} isUser />
       )}
+
+      {/* Moodio: the lens cleaves into 4 mood-cluster panes on prompt */}
+      {isChat && <MoodSplit userWorld={userWorld} />}
 
       <UnfoldView center={userWorld} assets={activeAssets} palette={user.palette} active={isUnfold} />
 

@@ -1,7 +1,14 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useTasteStore, type Mode, type AnchorId } from '../store/tasteStore'
 
-const MODES: Mode[] = ['build', 'compare', 'unfold']
+const MODES: Mode[] = ['build', 'compare', 'unfold', 'chat']
+// The mode token stays 'chat' (clean) while the pill reads "moodio".
+const LABELS: Record<Mode, string> = {
+  build: 'build',
+  compare: 'compare',
+  unfold: 'unfold',
+  chat: 'moodio',
+}
 const ANCHORS: { id: AnchorId; label: string }[] = [
   { id: 'nolan', label: 'Nolan' },
   { id: 'tarantino', label: 'Tarantino' },
@@ -32,7 +39,7 @@ export function ModeControls() {
                 />
               )}
               <span className={`relative ${active ? 'text-white' : 'text-white/45 hover:text-white/75'}`}>
-                {m}
+                {LABELS[m]}
               </span>
             </button>
           )
