@@ -27,7 +27,7 @@ function baseFraming(): { pos: V3; look: V3; lambda: number } {
     const split = useChatStore.getState().stage !== 'idle'
     if (split) {
       const look: V3 = [userW[0], userW[1] + 0.5, userW[2]]
-      return { pos: [look[0], look[1] + 0.2, look[2] + 23], look, lambda: 1.3 }
+      return { pos: [look[0], look[1] + 0.2, look[2] + 25], look, lambda: 1.3 }
     }
     return { pos: [userW[0], userW[1] + 0.4, userW[2] + 16], look: userW, lambda: 1.5 }
   }

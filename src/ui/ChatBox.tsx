@@ -3,10 +3,10 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useChatStore } from '../store/chatStore'
 import { CHAT_PLACEHOLDER } from '../data/chatData'
 
-// Stage timing (ms from submit): bubbles split, then hold + shimmer
-// ("generating"), then flatten into image panes.
-const GENERATING_AT = 900
-const REVEAL_AT = 2100
+// Stage timing (ms from submit): bubbles split, then hold while they rotate +
+// pulse ("generating", ~5s — the visible thinking beat), then reveal the images.
+const GENERATING_AT = 700
+const REVEAL_AT = 5700
 
 export function ChatBox() {
   const stage = useChatStore((s) => s.stage)
@@ -82,9 +82,9 @@ export function ChatBox() {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={onKey}
-          placeholder={CHAT_PLACEHOLDER}
+          placeholder="Describe a shot…"
           spellCheck={false}
-          className="flex-1 bg-transparent text-[14px] tracking-tight text-white/90 outline-none placeholder:text-white/35"
+          className="flex-1 bg-transparent text-[14px] tracking-tight text-white/90 outline-none placeholder:text-white/30"
         />
         <button
           onClick={run}

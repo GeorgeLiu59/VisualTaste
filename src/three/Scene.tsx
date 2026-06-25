@@ -116,7 +116,8 @@ function SceneContent() {
       <pointLight position={[-6, 2, -4]} intensity={30} color="#3c6cff" distance={30} />
       <pointLight position={[7, -3, 6]} intensity={26} color="#ff6a3c" distance={30} />
 
-      <AxisLabels opacity={0.14} />
+      {/* taste-space dimension labels belong to build/compare/unfold, not Moodio */}
+      {!isChat && <AxisLabels opacity={0.14} />}
 
       {/* Nolan & Tarantino anchors — only present in Compare mode. Build mode is
           just "you", so the user can watch their own taste form uncluttered. */}
