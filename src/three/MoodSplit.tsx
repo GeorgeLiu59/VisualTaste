@@ -20,15 +20,15 @@ type V3 = [number, number, number]
 
 // quadrant spread (world units) around the lens; grid lifted a touch so the
 // bottom row clears the chat box.
-const DX = 5.4
-const DY = 3.5
-const GRID_Y = 0.5
+const DX = 6.5
+const DY = 4.1
+const GRID_Y = 0.7
 
 const BUBBLE_SCALE = 0.85
 
-// result image box (larger now that the bubble vanishes to a thin frame)
-const BOX_W = 5.2
-const BOX_H = 3.4
+// result image box (large now that the bubble vanishes to just a thin frame)
+const BOX_W = 6.8
+const BOX_H = 4.4
 // thin accent frame around the image (total extra width; half each side)
 const BORDER = 0.14
 

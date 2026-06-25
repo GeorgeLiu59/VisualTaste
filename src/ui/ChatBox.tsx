@@ -1,12 +1,14 @@
-import { useEffect, useRef, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useChatStore } from '../store/chatStore'
 import { CHAT_PLACEHOLDER } from '../data/chatData'
 
 // Stage timing (ms from submit): bubbles split, then hold while they rotate +
-// pulse ("generating", ~5s — the visible thinking beat), then reveal the images.
+// pulse ("generating", the visible thinking beat), then reveal the images. The
+// status line stops a bit before the reveal so it doesn't linger.
 const GENERATING_AT = 700
-const REVEAL_AT = 5700
+const STATUS_OFF_AT = 10000
+const REVEAL_AT = 11000
 
 export function ChatBox() {
   const stage = useChatStore((s) => s.stage)
@@ -16,6 +18,10 @@ export function ChatBox() {
   const submit = useChatStore((s) => s.submit)
   const setStage = useChatStore((s) => s.setStage)
   const reset = useChatStore((s) => s.reset)
+
+  // Hide the "generating…" status after a while even if the bubbles animate
+  // longer, so it doesn't linger.
+  const [statusOff, setStatusOff] = useState(false)
 
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   const clearTimers = () => {
@@ -27,8 +33,10 @@ export function ChatBox() {
   const run = () => {
     const p = draft.trim() || CHAT_PLACEHOLDER
     clearTimers()
+    setStatusOff(false)
     submit(p)
     timers.current.push(setTimeout(() => setStage('generating'), GENERATING_AT))
+    timers.current.push(setTimeout(() => setStatusOff(true), STATUS_OFF_AT))
     timers.current.push(setTimeout(() => setStage('revealed'), REVEAL_AT))
   }
 
@@ -36,6 +44,7 @@ export function ChatBox() {
     clearTimers()
     reset()
     setDraft('')
+    setStatusOff(false)
   }
 
   const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -46,7 +55,7 @@ export function ChatBox() {
   }
 
   const busy = stage === 'splitting' || stage === 'generating'
-  const status = busy ? 'synthesizing four directions…' : stage === 'revealed' ? 'four directions from your taste' : null
+  const showStatus = busy && !statusOff
 
   return (
     <motion.div
@@ -96,16 +105,16 @@ export function ChatBox() {
       </div>
 
       <AnimatePresence>
-        {status && (
+        {showStatus && (
           <motion.div
-            key={status}
+            key="status"
             initial={{ opacity: 0 }}
-            animate={{ opacity: busy ? [0.4, 0.85, 0.4] : 0.6 }}
+            animate={{ opacity: [0.4, 0.85, 0.4] }}
             exit={{ opacity: 0 }}
-            transition={busy ? { duration: 1.6, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.5 }}
+            transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
             className="mt-2 text-[10px] uppercase tracking-[0.28em] text-white/45"
           >
-            {status}
+            generating…
           </motion.div>
         )}
       </AnimatePresence>
