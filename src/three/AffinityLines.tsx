@@ -3,7 +3,8 @@ import { useFrame } from '@react-three/fiber'
 import { QuadraticBezierLine } from '@react-three/drei'
 import * as THREE from 'three'
 import { nolanProfile, tarantinoProfile, type Asset } from '../data/tasteData'
-import { clamp, distance3D } from '../lib/taste'
+import { clamp, damp, distance3D } from '../lib/taste'
+import { useTasteStore } from '../store/tasteStore'
 
 type V3 = [number, number, number]
 
@@ -93,8 +94,13 @@ function AffinityString({ start, end, mid, color, strength }: { start: V3; end: 
   const halo = useRef<any>(null)
   const phase = useMemo(() => Math.random() * Math.PI * 2, [])
   const setup = useRef(false)
+  // Strings anchor at the lens's FINAL position, which snaps the instant a
+  // reference is absorbed — but the lens body eases there slowly, so the strings
+  // would point ahead of it. Gate them out during the absorb beat and ease them
+  // back once the lens has settled (absorbPhase === 'idle').
+  const gate = useRef(1)
 
-  useFrame((state) => {
+  useFrame((state, dt) => {
     const c = core.current
     const h = halo.current
     if (!c || !h) return
@@ -108,12 +114,15 @@ function AffinityString({ start, end, mid, color, strength }: { start: V3; end: 
       hm.needsUpdate = true
       setup.current = true
     }
+    // vanish fast on drop, ease back gently once settled
+    const gTarget = useTasteStore.getState().absorbPhase === 'idle' ? 1 : 0
+    gate.current = damp(gate.current, gTarget, gTarget < gate.current ? 12 : 2.6, dt)
     // a slow breath so the strings feel alive (radiating), not static
     const shimmer = 0.8 + 0.2 * Math.sin(state.clock.elapsedTime * 1.3 + phase)
     if (cm.linewidth !== undefined) cm.linewidth = 0.5 + strength * 0.8
     if (hm.linewidth !== undefined) hm.linewidth = 2.2 + strength * 3.4
-    cm.opacity = (0.16 + strength * 0.5) * shimmer
-    hm.opacity = (0.04 + strength * 0.12) * shimmer
+    cm.opacity = (0.16 + strength * 0.5) * shimmer * gate.current
+    hm.opacity = (0.04 + strength * 0.12) * shimmer * gate.current
   })
 
   return (

@@ -25,6 +25,7 @@ import {
   toWorld,
 } from '../lib/taste'
 import { useTasteStore } from '../store/tasteStore'
+import { useChatStore } from '../store/chatStore'
 import { Lens } from './Lens'
 import { ProfileAttachments } from './ProfileAttachments'
 import { UnfoldView } from './UnfoldView'
@@ -32,6 +33,7 @@ import { AxisLabels } from './AxisLabels'
 import { CameraRig } from './CameraRig'
 import { AbsorbDirector } from './AbsorbDirector'
 import { AffinityLines } from './AffinityLines'
+import { MoodSplit } from './MoodSplit'
 
 function SceneContent() {
   const activeAssetIds = useTasteStore((s) => s.activeAssetIds)
@@ -40,6 +42,7 @@ function SceneContent() {
   const hoveredAssetId = useTasteStore((s) => s.hoveredAssetId)
   const draggingAssetId = useTasteStore((s) => s.draggingAssetId)
   const rippleSeed = useTasteStore((s) => s.rippleSeed)
+  const chatStage = useChatStore((s) => s.stage)
 
   const user = useMemo(() => deriveUserProfile(activeAssetIds), [activeAssetIds])
   const activeAssets = useMemo(() => activeAssetIds.map(getAsset), [activeAssetIds])
@@ -59,10 +62,22 @@ function SceneContent() {
 
   const count = activeAssets.length
   const isUnfold = mode === 'unfold'
+  const isChat = mode === 'chat'
+  // Once the prompt is submitted the lens cleaves into the 4 quadrant panes
+  // (MoodSplit), so the main user lens collapses out of the way.
+  const chatSplit = isChat && chatStage !== 'idle'
   // Anchors (and the cross-space comparison visuals) belong to Compare mode.
   // Build mode is just "you".
   const showAnchors = mode === 'compare'
-  const userScale = isUnfold ? 0.2 : count === 0 ? 0.82 : 0.95 + Math.min(count, 6) * 0.07
+  const userScale = isUnfold
+    ? 0.2
+    : chatSplit
+      ? 0.05
+      : isChat
+        ? 1.5
+        : count === 0
+          ? 0.9
+          : 1.05 + Math.min(count, 6) * 0.085
 
   const leansNolan = user.position.y > 0.2 && user.position.x < 0.05
   const userStretch: [number, number, number] =
@@ -72,8 +87,8 @@ function SceneContent() {
   // that only *hint* at personality (Nolan a touch portrait, Tarantino a touch
   // landscape) with a closely-matched, subtle surface irregularity — rather
   // than the old tall-skinny-vs-lumpy-blob contrast.
-  const NOLAN_SCALE = 1.3
-  const TARANTINO_SCALE = 1.26
+  const NOLAN_SCALE = 1.62
+  const TARANTINO_SCALE = 1.56
   const NOLAN_STRETCH: [number, number, number] = [0.97, 1.1, 0.97]
   const TARANTINO_STRETCH: [number, number, number] = [1.08, 0.95, 1.08]
   // world radius of each lens (smallest semi-axis), so the reference cluster
@@ -101,7 +116,8 @@ function SceneContent() {
       <pointLight position={[-6, 2, -4]} intensity={30} color="#3c6cff" distance={30} />
       <pointLight position={[7, -3, 6]} intensity={26} color="#ff6a3c" distance={30} />
 
-      <AxisLabels opacity={0.14} />
+      {/* taste-space dimension labels belong to build/compare/unfold, not Moodio */}
+      {!isChat && <AxisLabels opacity={0.14} />}
 
       {/* Nolan & Tarantino anchors — only present in Compare mode. Build mode is
           just "you", so the user can watch their own taste form uncluttered. */}
@@ -164,13 +180,17 @@ function SceneContent() {
         geometrySeed={1}
         rippleSeed={rippleSeed}
         brightness={userBrightness}
-        showParticles={count > 0 && !isUnfold}
-        tilePresence={count > 0 && !isUnfold ? 1 : 0}
+        showParticles={count > 0 && !isUnfold && !chatSplit}
+        tilePresence={count > 0 && !isUnfold && !chatSplit ? 1 : 0}
+        opacity={chatSplit ? 0 : 1}
         isUser
       />
-      {count > 0 && !isUnfold && (
+      {count > 0 && !isUnfold && !chatSplit && (
         <ProfileAttachments center={userWorld} radius={userRadius} assets={activeAssets} emphasis={1} isUser />
       )}
+
+      {/* Moodio: the lens cleaves into 4 mood-cluster panes on prompt */}
+      {isChat && <MoodSplit userWorld={userWorld} />}
 
       <UnfoldView center={userWorld} assets={activeAssets} palette={user.palette} active={isUnfold} />
 

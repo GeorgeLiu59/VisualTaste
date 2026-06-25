@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { useTasteStore } from '../store/tasteStore'
 import { useCameraStore } from '../store/cameraStore'
 import { useUserMorphStore } from '../store/userMorphStore'
+import { useChatStore } from '../store/chatStore'
 import { deriveUserProfile, toWorld } from '../lib/taste'
 import { nolanProfile, tarantinoProfile } from '../data/tasteData'
 
@@ -19,6 +20,17 @@ function baseFraming(): { pos: V3; look: V3; lambda: number } {
   const morph = useUserMorphStore.getState()
   const userW: V3 = morph.active ? morph.pos : toWorld(user.displayPosition)
 
+  if (mode === 'chat') {
+    // Idle: framed on the (enlarged) lens center stage. Once the prompt splits
+    // it into the 4 quadrant panes, dolly back + lift slightly to take in the
+    // whole 2×2 grid (which sits lifted by GRID_Y).
+    const split = useChatStore.getState().stage !== 'idle'
+    if (split) {
+      const look: V3 = [userW[0], userW[1] + 0.8, userW[2]]
+      return { pos: [look[0], look[1] + 0.2, look[2] + 32], look, lambda: 1.3 }
+    }
+    return { pos: [userW[0], userW[1] + 0.4, userW[2] + 16], look: userW, lambda: 1.5 }
+  }
   if (mode === 'unfold') {
     return { pos: [userW[0], userW[1] + 0.3, userW[2] + 9.5], look: userW, lambda: 1.8 }
   }

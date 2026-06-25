@@ -44,7 +44,7 @@ function brightest(palette: string[]): string {
 // Fresnel rim shell (additive edge glow) + inner core glow
 // ---------------------------------------------------------------------------
 
-const glowVert = /* glsl */ `
+export const glowVert = /* glsl */ `
   varying vec3 vN;
   varying vec3 vView;
   void main() {
@@ -55,7 +55,7 @@ const glowVert = /* glsl */ `
   }
 `
 
-const rimFrag = /* glsl */ `
+export const rimFrag = /* glsl */ `
   uniform vec3 uColor;
   uniform float uPower;
   uniform float uIntensity;
@@ -80,7 +80,7 @@ const coreFrag = /* glsl */ `
   }
 `
 
-function makeGlowMaterial(color: string, frag: string, power: number) {
+export function makeGlowMaterial(color: string, frag: string, power: number) {
   return new THREE.ShaderMaterial({
     uniforms: {
       uColor: { value: new THREE.Color(color) },

@@ -41,20 +41,32 @@ export const nolanProfile: Profile = {
   id: 'nolan',
   label: 'Nolan',
   position: { x: -0.28, y: 0.78, z: -0.58 },
-  palette: ['#07090D', '#1C2B36', '#6D7882', '#C8A86A', '#E8E2D6'],
-  assets: ['nolan-inception', 'nolan-interstellar', 'nolan-dunkirk', 'nolan-dark-knight'],
+  // Nolan's own signature palette — deliberately distinct from any user palette
+  // so a match reads as an identified connection, not a duplicate asset.
+  palette: ['#060A12', '#13304E', '#3C6E92', '#A9C2D6', '#EAF3FA'],
+  assets: [
+    'nolan-inception',
+    'nolan-interstellar',
+    'nolan-dunkirk',
+    'nolan-dark-knight',
+    'nolan-text-practical-effects',
+    'nolan-palette-imax-steel',
+  ],
 }
 
 export const tarantinoProfile: Profile = {
   id: 'tarantino',
   label: 'Tarantino',
   position: { x: 0.62, y: -0.18, z: 0.72 },
-  palette: ['#0A0807', '#B11218', '#E0A326', '#F2E4C8', '#F05A28'],
+  // Tarantino's own signature palette — distinct from any user palette.
+  palette: ['#1B0A07', '#C81E2B', '#F0852C', '#FBE3A8', '#7E120E'],
   assets: [
     'tarantino-pulp-fiction',
     'tarantino-once-upon-a-time',
     'tarantino-reservoir-dogs',
     'tarantino-inglourious-basterds',
+    'tarantino-text-stylized-violence',
+    'tarantino-palette-pulp-neon',
   ],
 }
 
@@ -115,6 +127,26 @@ export const nolanAssets: Asset[] = [
     palette: ['#07090D', '#22323F', '#C8862A', '#3A4754', '#6D7882'],
     strength: 0.9,
   },
+  {
+    id: 'nolan-text-practical-effects',
+    type: 'text',
+    owner: 'nolan',
+    label: 'practical effects',
+    tags: ['practical', 'realism', 'in-camera', 'monumental'],
+    position: { x: -0.3, y: 0.7, z: -0.6 },
+    palette: ['#13304E', '#3C6E92', '#EAF3FA'],
+    strength: 0.6,
+  },
+  {
+    id: 'nolan-palette-imax-steel',
+    type: 'palette',
+    owner: 'nolan',
+    label: 'IMAX Blue',
+    palette: ['#060A12', '#13304E', '#3C6E92', '#A9C2D6', '#EAF3FA'],
+    tags: ['cold', 'monumental', 'restrained'],
+    position: { x: -0.24, y: 0.84, z: -0.52 },
+    strength: 0.35,
+  },
 ]
 
 // ---------------------------------------------------------------------------
@@ -165,6 +197,26 @@ export const tarantinoAssets: Asset[] = [
     position: { x: 0.78, y: -0.28, z: 0.82 },
     palette: ['#F05A28', '#B11218', '#0A0807', '#E0A326', '#1A0E08'],
     strength: 0.95,
+  },
+  {
+    id: 'tarantino-text-stylized-violence',
+    type: 'text',
+    owner: 'tarantino',
+    label: 'stylized violence',
+    tags: ['retro', 'kinetic', 'pulp', 'theatrical'],
+    position: { x: 0.66, y: -0.12, z: 0.78 },
+    palette: ['#C81E2B', '#F0852C', '#FBE3A8'],
+    strength: 0.6,
+  },
+  {
+    id: 'tarantino-palette-pulp-neon',
+    type: 'palette',
+    owner: 'tarantino',
+    label: 'Grindhouse',
+    palette: ['#1B0A07', '#C81E2B', '#F0852C', '#FBE3A8', '#7E120E'],
+    tags: ['warm', 'saturated', 'retro'],
+    position: { x: 0.56, y: -0.22, z: 0.66 },
+    strength: 0.35,
   },
 ]
 
