@@ -35,12 +35,9 @@ export function ProfileAttachments({
     // position the lens body uses, so references never lag behind the glass.
     const morph = isUser ? useUserMorphStore.getState() : null
     if (morph?.active) {
-      // viscous haul: the tile cluster TRAILS the body (which sits exactly on
-      // morph.pos) at a lower lambda, so tiles lag behind the leading edge
-      // mid-flight and catch up as the body eases into settle.
-      g.position.x = damp(g.position.x, morph.pos[0], 3.8, dt)
-      g.position.y = damp(g.position.y, morph.pos[1], 3.8, dt)
-      g.position.z = damp(g.position.z, morph.pos[2], 3.8, dt)
+      // track the body EXACTLY during the beat so the tiles move at the same
+      // speed/time as the bubble and never fall outside it as it travels.
+      g.position.set(morph.pos[0], morph.pos[1], morph.pos[2])
       return
     }
     g.position.x = damp(g.position.x, center[0], lambda, dt)

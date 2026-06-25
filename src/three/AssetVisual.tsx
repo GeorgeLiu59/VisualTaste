@@ -16,7 +16,13 @@ export function AssetVisual({ asset, sizeW, sizeH, opacity = 1 }: AssetVisualPro
         <>
           <mesh position={[0, 0, -0.02]} renderOrder={10}>
             <planeGeometry args={[sizeW + 0.1, sizeH + 0.1]} />
-            <meshBasicMaterial color="#05070b" transparent opacity={0.65 * opacity} toneMapped={false} />
+            <meshBasicMaterial
+              color="#05070b"
+              transparent
+              opacity={0.65 * opacity}
+              toneMapped={false}
+              depthTest={false}
+            />
           </mesh>
           <Image
             url={asset.src}
@@ -26,6 +32,7 @@ export function AssetVisual({ asset, sizeW, sizeH, opacity = 1 }: AssetVisualPro
             opacity={opacity}
             toneMapped={false}
             renderOrder={11}
+            material-depthTest={false}
           />
         </>
       )}
@@ -34,7 +41,13 @@ export function AssetVisual({ asset, sizeW, sizeH, opacity = 1 }: AssetVisualPro
         <>
           <mesh renderOrder={10}>
             <planeGeometry args={[sizeW, sizeH]} />
-            <meshBasicMaterial color="#171425" transparent opacity={0.72 * opacity} toneMapped={false} />
+            <meshBasicMaterial
+              color="#171425"
+              transparent
+              opacity={0.72 * opacity}
+              toneMapped={false}
+              depthTest={false}
+            />
           </mesh>
           <Text
             fontSize={0.15}
@@ -46,6 +59,7 @@ export function AssetVisual({ asset, sizeW, sizeH, opacity = 1 }: AssetVisualPro
             outlineWidth={0}
             textAlign="center"
             renderOrder={11}
+            material-depthTest={false}
           >
             {asset.label}
           </Text>
@@ -56,7 +70,13 @@ export function AssetVisual({ asset, sizeW, sizeH, opacity = 1 }: AssetVisualPro
         <group>
           <mesh position={[0, 0, -0.01]} renderOrder={10}>
             <planeGeometry args={[sizeW + 0.06, sizeH + 0.06]} />
-            <meshBasicMaterial color="#0a0c10" transparent opacity={0.68 * opacity} toneMapped={false} />
+            <meshBasicMaterial
+              color="#0a0c10"
+              transparent
+              opacity={0.68 * opacity}
+              toneMapped={false}
+              depthTest={false}
+            />
           </mesh>
           {asset.palette.slice(0, 5).map((c, i) => {
             const n = Math.min(asset.palette.length, 5)
@@ -65,7 +85,7 @@ export function AssetVisual({ asset, sizeW, sizeH, opacity = 1 }: AssetVisualPro
             return (
               <mesh key={c + i} position={[x, 0, 0]} renderOrder={11}>
                 <planeGeometry args={[w * 0.92, sizeH * 0.8]} />
-                <meshBasicMaterial color={c} transparent opacity={opacity} toneMapped={false} />
+                <meshBasicMaterial color={c} transparent opacity={opacity} toneMapped={false} depthTest={false} />
               </mesh>
             )
           })}
