@@ -76,11 +76,6 @@ function SceneContent() {
   const TARANTINO_SCALE = 1.26
   const NOLAN_STRETCH: [number, number, number] = [0.97, 1.1, 0.97]
   const TARANTINO_STRETCH: [number, number, number] = [1.08, 0.95, 1.08]
-  const minStretch = (s: [number, number, number]) => Math.min(s[0], s[1], s[2])
-  const userContainer = userScale * minStretch(userStretch) * 0.92
-  const nolanContainer = NOLAN_SCALE * minStretch(NOLAN_STRETCH) * 0.92
-  const tarantinoContainer = TARANTINO_SCALE * minStretch(TARANTINO_STRETCH) * 0.92
-
   const warmAssets = activeAssets.filter(isTarantinoLike)
 
   const userAccent =
@@ -115,14 +110,13 @@ function SceneContent() {
             stretch={NOLAN_STRETCH}
             irregular={0.04}
             geometrySeed={2}
-          />
-          <ProfileAttachments
-            center={nolanWorld}
-            assets={nolanAssets}
-            palette={nolanProfile.palette}
-            containerRadius={nolanContainer}
-            emphasis={compareTarget === 'nolan' ? 0.9 : 0.62}
-          />
+          >
+            <ProfileAttachments
+              assets={nolanAssets}
+              accent="#8fb4e6"
+              emphasis={compareTarget === 'nolan' ? 0.9 : 0.62}
+            />
+          </Lens>
 
           {/* Tarantino */}
           <Lens
@@ -134,14 +128,13 @@ function SceneContent() {
             irregular={0.06}
             geometrySeed={5}
             rimScale={0.4}
-          />
-          <ProfileAttachments
-            center={tarantinoWorld}
-            assets={tarantinoAssets}
-            palette={tarantinoProfile.palette}
-            containerRadius={tarantinoContainer}
-            emphasis={compareTarget === 'tarantino' ? 0.9 : 0.62}
-          />
+          >
+            <ProfileAttachments
+              assets={tarantinoAssets}
+              accent="#ff7a45"
+              emphasis={compareTarget === 'tarantino' ? 0.9 : 0.62}
+            />
+          </Lens>
 
           {/* per-asset affinity lines from each user reference to the director
               it most resembles (stronger = closer) */}
@@ -168,16 +161,11 @@ function SceneContent() {
         showParticles={count > 0 && !isUnfold}
         tilePresence={count > 0 && !isUnfold ? 1 : 0}
         isUser
-      />
-      {!isUnfold && (
-        <ProfileAttachments
-          center={userWorld}
-          assets={activeAssets}
-          palette={user.palette}
-          containerRadius={userContainer}
-          isUser
-        />
-      )}
+      >
+        {count > 0 && !isUnfold && (
+          <ProfileAttachments assets={activeAssets} accent={userAccent} emphasis={1} />
+        )}
+      </Lens>
 
       <UnfoldView center={userWorld} assets={activeAssets} palette={user.palette} active={isUnfold} />
 

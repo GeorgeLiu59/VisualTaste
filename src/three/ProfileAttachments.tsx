@@ -1,61 +1,48 @@
-import { useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useMemo } from 'react'
 import * as THREE from 'three'
 import type { Asset } from '../data/tasteData'
-import { damp } from '../lib/taste'
-import { useUserMorphStore } from '../store/userMorphStore'
-import { AssetAttachment } from './AssetAttachment'
+import { CurvedPanel } from './CurvedPanel'
 
-export interface ProfileAttachmentsProps {
-  center: [number, number, number]
-  assets: Asset[]
-  palette: string[]
-  /** Radius of the bubble the references are suspended inside. */
-  containerRadius: number
-  lambda?: number
-  emphasis?: number
-  /** User instance: follow the eased morph position so tiles track the lens body. */
-  isUser?: boolean
+const GOLDEN = Math.PI * (3 - Math.sqrt(5))
+
+/** Spherical-Fibonacci outward direction, equator-biased (off the poles). */
+function fibDir(i: number, n: number): [number, number, number] {
+  if (n === 1) {
+    const v = new THREE.Vector3(0.15, 0.1, 1).normalize()
+    return [v.x, v.y, v.z]
+  }
+  const y = (1 - (2 * (i + 0.5)) / n) * 0.62
+  const r = Math.sqrt(Math.max(0, 1 - y * y))
+  const phi = i * GOLDEN
+  const v = new THREE.Vector3(Math.cos(phi) * r, y, Math.sin(phi) * r).normalize()
+  return [v.x, v.y, v.z]
 }
 
-export function ProfileAttachments({
-  center,
-  assets,
-  palette,
-  containerRadius,
-  lambda = 2.2,
-  emphasis = 1,
-  isUser = false,
-}: ProfileAttachmentsProps) {
-  const group = useRef<THREE.Group>(null!)
-  useFrame((_, dt) => {
-    const g = group.current
-    if (!g) return
-    // During an absorb morph the user cluster snaps to the same eased world
-    // position the lens body uses, so references never lag behind the glass.
-    const morph = isUser ? useUserMorphStore.getState() : null
-    if (morph?.active) {
-      // track the body EXACTLY during the beat so the tiles move at the same
-      // speed/time as the bubble and never fall outside it as it travels.
-      g.position.set(morph.pos[0], morph.pos[1], morph.pos[2])
-      return
-    }
-    g.position.x = damp(g.position.x, center[0], lambda, dt)
-    g.position.y = damp(g.position.y, center[1], lambda, dt)
-    g.position.z = damp(g.position.z, center[2], lambda, dt)
-  })
+export interface ProfileAttachmentsProps {
+  assets: Asset[]
+  /** Owning lens accent (per-lens color). */
+  accent: string
+  /** Visual prominence (1 user, ~0.62/0.9 anchors). */
+  emphasis?: number
+}
+
+/**
+ * Lays a profile's references out as curved panels distributed over its glass
+ * surface (spherical Fibonacci). Rendered as a CHILD of the lens `inner` group,
+ * so the panels rotate + stretch with the glass — no manual position sync, no
+ * camera-billboard swim. Fewer references → larger panels.
+ */
+export function ProfileAttachments({ assets, accent, emphasis = 1 }: ProfileAttachmentsProps) {
+  const layout = useMemo(() => {
+    const n = assets.length
+    const arc = THREE.MathUtils.lerp(0.62, 0.34, (Math.min(n, 8) - 1) / 7)
+    return assets.map((a, i) => ({ asset: a, dir: fibDir(i, n), arc }))
+  }, [assets])
+
   return (
-    <group ref={group} position={center}>
-      {assets.map((a, i) => (
-        <AssetAttachment
-          key={a.id}
-          asset={a}
-          index={i}
-          total={assets.length}
-          palette={palette}
-          containerRadius={containerRadius}
-          emphasis={emphasis}
-        />
+    <group>
+      {layout.map(({ asset, dir, arc }) => (
+        <CurvedPanel key={asset.id} asset={asset} dir={dir} arc={arc} accent={accent} emphasis={emphasis} />
       ))}
     </group>
   )

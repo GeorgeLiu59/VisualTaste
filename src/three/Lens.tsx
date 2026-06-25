@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { MeshTransmissionMaterial } from '@react-three/drei'
 import * as THREE from 'three'
@@ -182,6 +182,9 @@ export interface LensProps {
    * position (instead of its own damp) so body, tiles, and camera stay locked.
    */
   isUser?: boolean
+  /** Reference panels — rendered INSIDE the inner group so they conform to and
+   *  rotate/stretch with the glass. */
+  children?: ReactNode
 }
 
 export function Lens({
@@ -200,6 +203,7 @@ export function Lens({
   tilePresence = 0,
   rimScale = 1,
   isUser = false,
+  children,
 }: LensProps) {
   const group = useRef<THREE.Group>(null!)
   const inner = useRef<THREE.Group>(null!)
@@ -349,11 +353,14 @@ export function Lens({
         <mesh geometry={geometry} scale={0.9} renderOrder={1}>
           <primitive object={coreMat} attach="material" />
         </mesh>
-        {/* fresnel rim */}
-        <mesh geometry={geometry} scale={1.035} renderOrder={2}>
+        {/* fresnel rim — drawn AFTER the reference panels (renderOrder ≤4) so the
+            additive edge glow still wraps over the near-hemisphere panels */}
+        <mesh geometry={geometry} scale={1.035} renderOrder={5}>
           <primitive object={rimMat} attach="material" />
         </mesh>
         {showParticles && <InnerParticles palette={palette} />}
+        {/* reference panels conform to + rotate/stretch with the glass */}
+        {children}
       </group>
     </group>
   )
