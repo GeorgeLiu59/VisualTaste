@@ -25,11 +25,6 @@ function midpoint(a: V3, b: V3): V3 {
 export interface InfluenceCurveProps {
   start?: V3
   end?: V3
-  /** Dynamic mode: return [start, end] each frame (local space). */
-  compute?: () => [V3, V3]
-  /** Dynamic strength: return 0..1 each frame (overrides `strength`) — lets a
-   *  caller fade/retract the curve per-frame without React re-renders. */
-  dynamicStrength?: () => number
   color: string
   strength: number
   hovered?: boolean
@@ -39,8 +34,6 @@ export interface InfluenceCurveProps {
 export function InfluenceCurve({
   start = [0, 0, 0],
   end = [0, 0, 0],
-  compute,
-  dynamicStrength,
   color,
   strength,
   hovered = false,
@@ -51,11 +44,7 @@ export function InfluenceCurve({
   useFrame((_, dt) => {
     const line = ref.current
     if (!line) return
-    if (compute) {
-      const [s, e] = compute()
-      line.setPoints(s, e, midpoint(s, e))
-    }
-    const str = dynamicStrength ? dynamicStrength() : strength
+    const str = strength
     const mat = line.material as THREE.Material & {
       dashOffset?: number
       linewidth?: number

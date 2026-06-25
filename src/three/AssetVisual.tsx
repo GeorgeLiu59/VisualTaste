@@ -24,17 +24,23 @@ function ImageTile({ src, boxW, boxH, opacity }: { src: string; boxW: number; bo
 
   useEffect(() => {
     let active = true
+    let loaded: THREE.Texture | null = null
     new THREE.TextureLoader().load(src, (t) => {
       t.colorSpace = THREE.SRGBColorSpace
       t.anisotropy = 8
       t.minFilter = THREE.LinearMipmapLinearFilter
       t.magFilter = THREE.LinearFilter
       t.generateMipmaps = true
+      loaded = t
       if (active) setTex(t)
       else t.dispose()
     })
+    // free this tile's own GPU texture upload when it unmounts (tiles churn on
+    // every add/remove + mode switch); a distinct Texture per load, so disposing
+    // it can't blank a live sibling that loaded the same src separately.
     return () => {
       active = false
+      loaded?.dispose()
     }
   }, [src])
 

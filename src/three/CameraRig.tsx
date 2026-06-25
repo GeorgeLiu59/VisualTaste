@@ -10,6 +10,9 @@ import { nolanProfile, tarantinoProfile } from '../data/tasteData'
 
 type V3 = [number, number, number]
 const Y = new THREE.Vector3(0, 1, 0)
+// anchor world positions are static (taste-space literals × constant WORLD_SCALE)
+const NOLAN_W: V3 = toWorld(nolanProfile.position)
+const TARANTINO_W: V3 = toWorld(tarantinoProfile.position)
 
 function baseFraming(): { pos: V3; look: V3; lambda: number } {
   const { mode, activeAssetIds } = useTasteStore.getState()
@@ -37,12 +40,10 @@ function baseFraming(): { pos: V3; look: V3; lambda: number } {
   if (mode === 'compare') {
     // frame all three lenses: the centroid of the user + both anchors, pulled
     // back far enough to take in Nolan (high/cool) and Tarantino (low/warm).
-    const nW = toWorld(nolanProfile.position)
-    const tW = toWorld(tarantinoProfile.position)
     const look: V3 = [
-      (userW[0] + nW[0] + tW[0]) / 3,
-      (userW[1] + nW[1] + tW[1]) / 3,
-      (userW[2] + nW[2] + tW[2]) / 3,
+      (userW[0] + NOLAN_W[0] + TARANTINO_W[0]) / 3,
+      (userW[1] + NOLAN_W[1] + TARANTINO_W[1]) / 3,
+      (userW[2] + NOLAN_W[2] + TARANTINO_W[2]) / 3,
     ]
     return { pos: [look[0] + 0.5, look[1] + 1.2, look[2] + 16], look, lambda: 1.6 }
   }

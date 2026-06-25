@@ -10,9 +10,10 @@ function makeLensGeometry(irregularity: number, seed: number) {
   const geo = new THREE.SphereGeometry(1, 110, 110)
   const pos = geo.attributes.position as THREE.BufferAttribute
   const v = new THREE.Vector3()
+  const n = new THREE.Vector3()
   for (let i = 0; i < pos.count; i++) {
     v.fromBufferAttribute(pos, i)
-    const n = v.clone().normalize()
+    n.copy(v).normalize()
     const noise =
       Math.sin(n.x * 2.3 + seed) * 0.5 +
       Math.sin(n.y * 3.1 + seed * 1.7) * 0.3 +
@@ -44,7 +45,7 @@ function brightest(palette: string[]): string {
 // Fresnel rim shell (additive edge glow) + inner core glow
 // ---------------------------------------------------------------------------
 
-export const glowVert = /* glsl */ `
+const glowVert = /* glsl */ `
   varying vec3 vN;
   varying vec3 vView;
   void main() {
@@ -55,7 +56,7 @@ export const glowVert = /* glsl */ `
   }
 `
 
-export const rimFrag = /* glsl */ `
+const rimFrag = /* glsl */ `
   uniform vec3 uColor;
   uniform float uPower;
   uniform float uIntensity;
@@ -80,7 +81,7 @@ const coreFrag = /* glsl */ `
   }
 `
 
-export function makeGlowMaterial(color: string, frag: string, power: number) {
+function makeGlowMaterial(color: string, frag: string, power: number) {
   return new THREE.ShaderMaterial({
     uniforms: {
       uColor: { value: new THREE.Color(color) },
@@ -139,6 +140,9 @@ function InnerParticles({
     }
     colorAttr.needsUpdate = true
   }, [palette, geometry, count])
+
+  // free the particle buffer geometry on unmount / regen (see Lens note above)
+  useEffect(() => () => geometry.dispose(), [geometry])
 
   useFrame((state, dt) => {
     if (ref.current) {
@@ -218,6 +222,20 @@ export function Lens({
   const rimMat = useMemo(() => makeGlowMaterial(accentColor, rimFrag, 2.0), [])
   const coreMat = useMemo(() => makeGlowMaterial(accentColor, coreFrag, 1.6), [])
   const geometry = useMemo(() => makeLensGeometry(irregular, geometrySeed), [irregular, geometrySeed])
+
+  // R3F auto-disposes JSX-declared materials, but NOT objects created in useMemo
+  // and attached via geometry={...} / <primitive object={...}>. Release them when
+  // the geometry regenerates (irregular/seed change) and on unmount — anchor
+  // lenses unmount on leaving Compare and the 4 mood sub-lenses on reveal, so
+  // otherwise their GPU buffers + shader programs leak each cycle.
+  useEffect(() => () => geometry.dispose(), [geometry])
+  useEffect(
+    () => () => {
+      rimMat.dispose()
+      coreMat.dispose()
+    },
+    [rimMat, coreMat],
+  )
 
   const impulse = useRef(0)
   const lastSeed = useRef(rippleSeed)

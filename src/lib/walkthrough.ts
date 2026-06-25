@@ -1,8 +1,6 @@
 import { useTasteStore } from '../store/tasteStore'
 import { useCameraStore } from '../store/cameraStore'
 
-const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
-
 /**
  * Runs the cinematic walkthrough from DESIGN.md section 17.
  *
@@ -17,6 +15,15 @@ const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
  */
 export function runWalkthrough(): () => void {
   let cancelled = false
+  // track the in-flight timer so cancel() can clear it (no dangling wake-up)
+  let activeTimer: ReturnType<typeof setTimeout> | undefined
+  const delay = (ms: number) =>
+    new Promise<void>((res) => {
+      activeTimer = setTimeout(() => {
+        activeTimer = undefined
+        res()
+      }, ms)
+    })
   const t = () => useTasteStore.getState()
   const cam = () => useCameraStore.getState()
 
@@ -87,6 +94,7 @@ export function runWalkthrough(): () => void {
 
   return () => {
     cancelled = true
+    if (activeTimer) clearTimeout(activeTimer)
     finish()
   }
 }
