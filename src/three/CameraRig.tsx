@@ -11,7 +11,7 @@ type V3 = [number, number, number]
 const Y = new THREE.Vector3(0, 1, 0)
 
 function baseFraming(): { pos: V3; look: V3; lambda: number } {
-  const { mode, compareTarget, activeAssetIds } = useTasteStore.getState()
+  const { mode, activeAssetIds } = useTasteStore.getState()
   const user = deriveUserProfile(activeAssetIds)
   // During an absorb morph, frame the SAME eased position the lens body uses so
   // the camera tracks it in lockstep (otherwise it would chase the final
@@ -23,12 +23,21 @@ function baseFraming(): { pos: V3; look: V3; lambda: number } {
     return { pos: [userW[0], userW[1] + 0.3, userW[2] + 9.5], look: userW, lambda: 1.8 }
   }
   if (mode === 'compare') {
-    const anchor = compareTarget === 'nolan' ? nolanProfile : tarantinoProfile
-    const aW = toWorld(anchor.position)
-    const look: V3 = [(userW[0] + aW[0]) / 2, (userW[1] + aW[1]) / 2 + 0.1, (userW[2] + aW[2]) / 2]
-    return { pos: [look[0] + 0.5, look[1] + 1.0, look[2] + 11.5], look, lambda: 1.8 }
+    // frame all three lenses: the centroid of the user + both anchors, pulled
+    // back far enough to take in Nolan (high/cool) and Tarantino (low/warm).
+    const nW = toWorld(nolanProfile.position)
+    const tW = toWorld(tarantinoProfile.position)
+    const look: V3 = [
+      (userW[0] + nW[0] + tW[0]) / 3,
+      (userW[1] + nW[1] + tW[1]) / 3,
+      (userW[2] + nW[2] + tW[2]) / 3,
+    ]
+    return { pos: [look[0] + 0.5, look[1] + 1.2, look[2] + 16], look, lambda: 1.6 }
   }
-  return { pos: [0.7, 1.9, 18.5], look: [0.5, 0.95, 0.2], lambda: 1.6 }
+  // build: follow the user lens so it stays centred + in the DOF focal plane as
+  // it drifts toward its taste centroid (was a fixed origin framing, which let
+  // the lens slide off-centre and out of focus as references were added).
+  return { pos: [userW[0] + 0.2, userW[1] + 0.95, userW[2] + 17.8], look: userW, lambda: 1.6 }
 }
 
 /**
