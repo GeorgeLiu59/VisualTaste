@@ -26,8 +26,8 @@ function baseFraming(): { pos: V3; look: V3; lambda: number } {
     // whole 2×2 grid (which sits lifted by GRID_Y).
     const split = useChatStore.getState().stage !== 'idle'
     if (split) {
-      const look: V3 = [userW[0], userW[1] + 0.6, userW[2]]
-      return { pos: [look[0], look[1] + 0.2, look[2] + 28], look, lambda: 1.3 }
+      const look: V3 = [userW[0], userW[1] + 0.8, userW[2]]
+      return { pos: [look[0], look[1] + 0.2, look[2] + 32], look, lambda: 1.3 }
     }
     return { pos: [userW[0], userW[1] + 0.4, userW[2] + 16], look: userW, lambda: 1.5 }
   }

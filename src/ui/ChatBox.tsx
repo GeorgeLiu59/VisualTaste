@@ -104,20 +104,14 @@ export function ChatBox() {
         </button>
       </div>
 
-      <AnimatePresence>
-        {showStatus && (
-          <motion.div
-            key="status"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: [0.4, 0.85, 0.4] }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-            className="mt-2 text-[10px] uppercase tracking-[0.28em] text-white/45"
-          >
-            generating…
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* plain conditional (no AnimatePresence) so it unmounts cleanly the
+          instant the beat ends — a repeating motion animation could otherwise
+          keep the node alive past reveal */}
+      {showStatus && (
+        <div className="mt-2 animate-pulse text-[10px] uppercase tracking-[0.28em] text-white/45">
+          generating…
+        </div>
+      )}
     </motion.div>
   )
 }

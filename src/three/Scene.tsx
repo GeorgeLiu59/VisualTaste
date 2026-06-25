@@ -180,8 +180,9 @@ function SceneContent() {
         geometrySeed={1}
         rippleSeed={rippleSeed}
         brightness={userBrightness}
-        showParticles={count > 0 && !isUnfold}
-        tilePresence={count > 0 && !isUnfold ? 1 : 0}
+        showParticles={count > 0 && !isUnfold && !chatSplit}
+        tilePresence={count > 0 && !isUnfold && !chatSplit ? 1 : 0}
+        opacity={chatSplit ? 0 : 1}
         isUser
       />
       {count > 0 && !isUnfold && !chatSplit && (
