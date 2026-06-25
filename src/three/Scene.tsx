@@ -256,12 +256,12 @@ export function Scene() {
         />
         <ChromaticAberration
           blendFunction={BlendFunction.NORMAL}
-          offset={new THREE.Vector2(0.0006, 0.0006)}
+          offset={new THREE.Vector2(0.0002, 0.0002)}
           radialModulation={false}
           modulationOffset={0}
         />
         <Vignette eskil={false} offset={0.38} darkness={0.6} />
-        <Noise premultiply blendFunction={BlendFunction.OVERLAY} opacity={0.045} />
+        <Noise premultiply blendFunction={BlendFunction.OVERLAY} opacity={0.03} />
       </EffectComposer>
     </Canvas>
   )

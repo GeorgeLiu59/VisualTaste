@@ -1,4 +1,6 @@
-import { Billboard, Image, Text } from '@react-three/drei'
+import { useEffect, useState } from 'react'
+import { Billboard, Text } from '@react-three/drei'
+import * as THREE from 'three'
 import type { Asset } from '../data/tasteData'
 
 export interface AssetVisualProps {
@@ -8,33 +10,72 @@ export interface AssetVisualProps {
   opacity?: number
 }
 
+/**
+ * Full image tile (no cropping). Loads the texture imperatively and CONTAINS it
+ * within the allotted box at the image's own aspect ratio — so the whole image
+ * is visible rather than cover-cropped. Drawn through a plain meshBasicMaterial
+ * (toneMapped off) so it shows at true, full brightness — the original image.
+ */
+function ImageTile({ src, boxW, boxH, opacity }: { src: string; boxW: number; boxH: number; opacity: number }) {
+  const [tex, setTex] = useState<THREE.Texture | null>(null)
+
+  useEffect(() => {
+    let active = true
+    new THREE.TextureLoader().load(src, (t) => {
+      t.colorSpace = THREE.SRGBColorSpace
+      t.anisotropy = 8
+      t.minFilter = THREE.LinearMipmapLinearFilter
+      t.magFilter = THREE.LinearFilter
+      t.generateMipmaps = true
+      if (active) setTex(t)
+      else t.dispose()
+    })
+    return () => {
+      active = false
+    }
+  }, [src])
+
+  // contain-fit: preserve the image aspect, fit inside the box (letterboxed)
+  let w = boxW
+  let h = boxH
+  const img = tex?.image as { width: number; height: number } | undefined
+  if (img && img.width && img.height) {
+    const a = img.width / img.height
+    const boxA = boxW / boxH
+    if (a > boxA) {
+      w = boxW
+      h = boxW / a
+    } else {
+      h = boxH
+      w = boxH * a
+    }
+  }
+
+  return (
+    <group>
+      {/* dark backing sized to the fitted image (small frame) */}
+      <mesh position={[0, 0, -0.02]} renderOrder={10}>
+        <planeGeometry args={[w + 0.07, h + 0.07]} />
+        <meshBasicMaterial color="#05070b" transparent opacity={0.6 * opacity} toneMapped={false} depthTest={false} />
+      </mesh>
+      {/* the image only renders once the texture is loaded, so the material is
+          compiled WITH its map (avoids the all-white meshBasicMaterial bug) */}
+      {tex && (
+        <mesh renderOrder={11}>
+          <planeGeometry args={[w, h]} />
+          <meshBasicMaterial map={tex} transparent opacity={opacity} toneMapped={false} depthTest={false} />
+        </mesh>
+      )}
+    </group>
+  )
+}
+
 /** Camera-facing visual for an asset: image tile, text chip, or palette swatch. */
 export function AssetVisual({ asset, sizeW, sizeH, opacity = 1 }: AssetVisualProps) {
   return (
     <Billboard renderOrder={10}>
       {asset.type === 'image' && asset.src && (
-        <>
-          <mesh position={[0, 0, -0.02]} renderOrder={10}>
-            <planeGeometry args={[sizeW + 0.1, sizeH + 0.1]} />
-            <meshBasicMaterial
-              color="#05070b"
-              transparent
-              opacity={0.65 * opacity}
-              toneMapped={false}
-              depthTest={false}
-            />
-          </mesh>
-          <Image
-            url={asset.src}
-            scale={[sizeW, sizeH] as unknown as number}
-            radius={0.1}
-            transparent
-            opacity={opacity}
-            toneMapped={false}
-            renderOrder={11}
-            material-depthTest={false}
-          />
-        </>
+        <ImageTile src={asset.src} boxW={sizeW} boxH={sizeH} opacity={opacity} />
       )}
 
       {asset.type === 'text' && (
