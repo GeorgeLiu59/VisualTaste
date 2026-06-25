@@ -162,7 +162,9 @@ export function CurvedPanel({ asset, dir, arc, accent, emphasis = 1 }: CurvedPan
     panelPos.current.copy(worldNormal.current).multiplyScalar(R_FACE * tmpScale.current.x).add(tmpPos.current)
     viewDir.current.copy(state.camera.position).sub(panelPos.current).normalize()
     const facing = worldNormal.current.dot(viewDir.current)
-    const fade = THREE.MathUtils.smoothstep(facing, 0.12, 0.55)
+    // smoothstep(0.12, 0.55, facing): near hemisphere crisp, limb fades, back→0
+    const tt = clamp((facing - 0.12) / (0.55 - 0.12))
+    const fade = tt * tt * (3 - 2 * tt)
     g.visible = fade > 0.01
     if (!g.visible) return
 
@@ -275,7 +277,9 @@ export function CurvedPanel({ asset, dir, arc, accent, emphasis = 1 }: CurvedPan
               outlineWidth={0}
               toneMapped={false}
               renderOrder={5}
-              ref={textRef as never}
+              ref={(el) => {
+                textRef.current = el as unknown as { fillOpacity: number } | null
+              }}
               material-depthWrite={false}
             >
               {asset.label}
