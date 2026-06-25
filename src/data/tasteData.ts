@@ -42,7 +42,14 @@ export const nolanProfile: Profile = {
   label: 'Nolan',
   position: { x: -0.28, y: 0.78, z: -0.58 },
   palette: ['#07090D', '#1C2B36', '#6D7882', '#C8A86A', '#E8E2D6'],
-  assets: ['nolan-inception', 'nolan-interstellar', 'nolan-dunkirk', 'nolan-dark-knight'],
+  assets: [
+    'nolan-inception',
+    'nolan-interstellar',
+    'nolan-dunkirk',
+    'nolan-dark-knight',
+    'nolan-text-structured-time',
+    'nolan-palette-imax-steel',
+  ],
 }
 
 export const tarantinoProfile: Profile = {
@@ -55,6 +62,8 @@ export const tarantinoProfile: Profile = {
     'tarantino-once-upon-a-time',
     'tarantino-reservoir-dogs',
     'tarantino-inglourious-basterds',
+    'tarantino-text-kinetic-pulp',
+    'tarantino-palette-pulp-neon',
   ],
 }
 
@@ -115,6 +124,26 @@ export const nolanAssets: Asset[] = [
     palette: ['#07090D', '#22323F', '#C8862A', '#3A4754', '#6D7882'],
     strength: 0.9,
   },
+  {
+    id: 'nolan-text-structured-time',
+    type: 'text',
+    owner: 'nolan',
+    label: 'structured time',
+    tags: ['time', 'structure', 'controlled', 'monumental'],
+    position: { x: -0.3, y: 0.7, z: -0.6 },
+    palette: ['#1C2B36', '#6D7882', '#E8E2D6'],
+    strength: 0.6,
+  },
+  {
+    id: 'nolan-palette-imax-steel',
+    type: 'palette',
+    owner: 'nolan',
+    label: 'IMAX Steel',
+    palette: ['#07090D', '#1C2B36', '#6D7882', '#C8A86A', '#E8E2D6'],
+    tags: ['cold', 'monumental', 'restrained'],
+    position: { x: -0.24, y: 0.84, z: -0.52 },
+    strength: 0.35,
+  },
 ]
 
 // ---------------------------------------------------------------------------
@@ -165,6 +194,26 @@ export const tarantinoAssets: Asset[] = [
     position: { x: 0.78, y: -0.28, z: 0.82 },
     palette: ['#F05A28', '#B11218', '#0A0807', '#E0A326', '#1A0E08'],
     strength: 0.95,
+  },
+  {
+    id: 'tarantino-text-kinetic-pulp',
+    type: 'text',
+    owner: 'tarantino',
+    label: 'kinetic pulp',
+    tags: ['retro', 'kinetic', 'pulp', 'theatrical'],
+    position: { x: 0.66, y: -0.12, z: 0.78 },
+    palette: ['#B11218', '#E0A326', '#F2E4C8'],
+    strength: 0.6,
+  },
+  {
+    id: 'tarantino-palette-pulp-neon',
+    type: 'palette',
+    owner: 'tarantino',
+    label: 'Pulp Neon',
+    palette: ['#0A0807', '#B11218', '#E0A326', '#F2E4C8', '#F05A28'],
+    tags: ['warm', 'saturated', 'retro'],
+    position: { x: 0.56, y: -0.22, z: 0.66 },
+    strength: 0.35,
   },
 ]
 
