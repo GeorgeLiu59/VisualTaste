@@ -76,8 +76,8 @@ function SceneContent() {
       : isChat
         ? 1.5
         : count === 0
-          ? 0.82
-          : 0.95 + Math.min(count, 6) * 0.07
+          ? 0.9
+          : 1.05 + Math.min(count, 6) * 0.085
 
   const leansNolan = user.position.y > 0.2 && user.position.x < 0.05
   const userStretch: [number, number, number] =
@@ -87,8 +87,8 @@ function SceneContent() {
   // that only *hint* at personality (Nolan a touch portrait, Tarantino a touch
   // landscape) with a closely-matched, subtle surface irregularity — rather
   // than the old tall-skinny-vs-lumpy-blob contrast.
-  const NOLAN_SCALE = 1.3
-  const TARANTINO_SCALE = 1.26
+  const NOLAN_SCALE = 1.62
+  const TARANTINO_SCALE = 1.56
   const NOLAN_STRETCH: [number, number, number] = [0.97, 1.1, 0.97]
   const TARANTINO_STRETCH: [number, number, number] = [1.08, 0.95, 1.08]
   // world radius of each lens (smallest semi-axis), so the reference cluster

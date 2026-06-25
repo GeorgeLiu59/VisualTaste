@@ -3,11 +3,11 @@ import { Billboard } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { damp } from '../lib/taste'
-import { getAsset, type Asset } from '../data/tasteData'
+import { getAsset } from '../data/tasteData'
 import { useChatStore, type ChatStage } from '../store/chatStore'
 import { moodSubsets, type MoodSubset } from '../data/chatData'
 import { Lens } from './Lens'
-import { AssetVisual, assetSize } from './AssetVisual'
+import { ProfileAttachments } from './ProfileAttachments'
 import { softDot } from './softDot'
 
 // ---------------------------------------------------------------------------
@@ -27,8 +27,9 @@ const DX = 7.0
 const DY = 4.6
 const GRID_Y = 1.0
 
-// sub-bubble size while generating — roomy so its references spread out.
-const BUBBLE_SCALE = 3.4
+// sub-bubble size while generating — compact (the references can sit small +
+// together here; the roomier spread is for the main build/compare bubbles).
+const BUBBLE_SCALE = 2.4
 
 // result image box (large)
 const BOX_W = 10.0
@@ -134,62 +135,12 @@ function Entity({
         </group>
       )}
 
-      {/* the category's references, spread out + gently floating inside the bubble */}
-      {split && !revealed && memberAssets.map((a, i) => (
-        <FloatingTile key={a.id} asset={a} index={i} total={memberAssets.length} radius={BUBBLE_SCALE} />
-      ))}
+      {/* the category's references, nestled in this bubble */}
+      {split && !revealed && (
+        <ProfileAttachments center={[0, 0, 0]} radius={BUBBLE_SCALE * 0.85} assets={memberAssets} emphasis={1} />
+      )}
 
       <MoodPane src={subset.resultSrc} fallbackSrc={subset.fallbackSrc} revealed={revealed} />
-    </group>
-  )
-}
-
-/**
- * One reference tile floating inside a sub-bubble: laid out on a roomy
- * camera-facing ring (so the references don't crowd), billboarded for
- * legibility, drifting gently so the cluster feels alive rather than static.
- */
-function FloatingTile({ asset, index, total, radius }: { asset: Asset; index: number; total: number; radius: number }) {
-  const ref = useRef<THREE.Group>(null!)
-  const [w, h] = assetSize(asset)
-  const tileScale = radius * 0.32
-
-  const layout = useMemo(() => {
-    // even ring placement; single tile sits centered
-    const ang = total <= 1 ? 0 : (index / total) * Math.PI * 2 - Math.PI / 2
-    const spreadR = total <= 1 ? 0 : radius * 0.6
-    return { bx: Math.cos(ang) * spreadR, by: Math.sin(ang) * spreadR, ph: index * 1.7, ph2: index * 2.3 + 1 }
-  }, [index, total, radius])
-
-  const camX = useRef(new THREE.Vector3())
-  const camY = useRef(new THREE.Vector3())
-  const camZ = useRef(new THREE.Vector3())
-  const out = useRef(new THREE.Vector3())
-  const cur = useRef(0.0001)
-
-  useFrame((state, dt) => {
-    const g = ref.current
-    if (!g) return
-    const t = state.clock.elapsedTime
-    state.camera.matrixWorld.extractBasis(camX.current, camY.current, camZ.current)
-    // gentle drift so the references aren't static
-    const lift = layout.bx + Math.sin(t * 0.5 + layout.ph) * radius * 0.06
-    const rise = layout.by + Math.cos(t * 0.42 + layout.ph2) * radius * 0.06
-    const depth = radius * 0.12
-    out.current
-      .set(0, 0, 0)
-      .addScaledVector(camX.current, lift)
-      .addScaledVector(camY.current, rise)
-      .addScaledVector(camZ.current, depth)
-    g.position.copy(out.current)
-    // grow in
-    cur.current = damp(cur.current, tileScale, 7, dt)
-    g.scale.setScalar(cur.current)
-  })
-
-  return (
-    <group ref={ref} scale={0.0001}>
-      <AssetVisual asset={asset} sizeW={w} sizeH={h} opacity={0.96} />
     </group>
   )
 }

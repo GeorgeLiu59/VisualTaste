@@ -89,17 +89,19 @@ function Tile({
     const n = Math.max(total, 1)
     const rNorm = n === 1 ? 0 : Math.sqrt((index + 0.5) / n)
     const ang = index * GOLDEN
-    // disc radius fraction of the bubble — kept inside the silhouette
-    const discR = radius * 0.58
+    // disc radius fraction of the bubble — pushed out so references spread
+    // across the (larger) bubble instead of crowding the center.
+    const discR = radius * 0.66
     const x = Math.cos(ang) * rNorm * discR
     const y = Math.sin(ang) * rNorm * discR
     return { x, y, bob: index * 1.7, sway: index * 0.9 }
   }, [index, total, radius])
 
   const [unitW, unitH] = assetSize(asset)
-  // tile world size: bigger now that the glass is clearer; shrink as the cluster
-  // grows so they don't overlap or spill the silhouette.
-  const tileScale = radius * (0.62 - Math.min(total, 6) * 0.03)
+  // tile world size: a touch smaller relative to the bubble so the wider spread
+  // reads as breathing room rather than overlap; shrinks further as the cluster
+  // grows. (Absolute size stays generous because the bubbles are now larger.)
+  const tileScale = radius * (0.56 - Math.min(total, 6) * 0.03)
 
   const camX = useRef(new THREE.Vector3())
   const camY = useRef(new THREE.Vector3())
