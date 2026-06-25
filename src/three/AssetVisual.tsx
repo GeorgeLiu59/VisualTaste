@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Billboard, Text } from '@react-three/drei'
+import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { Asset } from '../data/tasteData'
+import { softDot } from './softDot'
 
 export interface AssetVisualProps {
   asset: Asset
@@ -18,6 +20,7 @@ export interface AssetVisualProps {
  */
 function ImageTile({ src, boxW, boxH, opacity }: { src: string; boxW: number; boxH: number; opacity: number }) {
   const [tex, setTex] = useState<THREE.Texture | null>(null)
+  const sheen = useRef<THREE.Mesh>(null!)
 
   useEffect(() => {
     let active = true
@@ -51,6 +54,19 @@ function ImageTile({ src, boxW, boxH, opacity }: { src: string; boxW: number; bo
     }
   }
 
+  // Soft specular "glass sheen" that slides across the tile as the camera
+  // orbits — the cue that the image sits under a curved glass surface. Purely
+  // additive (only brightens), so the image never darkens or blurs.
+  useFrame((state) => {
+    const m = sheen.current
+    if (!m) return
+    const cam = state.camera.position
+    const ang = Math.atan2(cam.x, cam.z)
+    const t = state.clock.elapsedTime
+    m.position.x = Math.sin(ang) * w * 0.18
+    m.position.y = h * 0.2 + Math.sin(t * 0.25) * h * 0.04
+  })
+
   return (
     <group>
       {/* dark backing sized to the fitted image (small frame) */}
@@ -61,10 +77,26 @@ function ImageTile({ src, boxW, boxH, opacity }: { src: string; boxW: number; bo
       {/* the image only renders once the texture is loaded, so the material is
           compiled WITH its map (avoids the all-white meshBasicMaterial bug) */}
       {tex && (
-        <mesh renderOrder={11}>
-          <planeGeometry args={[w, h]} />
-          <meshBasicMaterial map={tex} transparent opacity={opacity} toneMapped={false} depthTest={false} />
-        </mesh>
+        <>
+          <mesh renderOrder={11}>
+            <planeGeometry args={[w, h]} />
+            <meshBasicMaterial map={tex} transparent opacity={opacity} toneMapped={false} depthTest={false} />
+          </mesh>
+          {/* glass sheen — soft elliptical highlight drifting across the surface */}
+          <mesh ref={sheen} renderOrder={12} scale={[w * 0.85, h * 0.5, 1]} position={[0, h * 0.2, 0.012]}>
+            <planeGeometry args={[1, 1]} />
+            <meshBasicMaterial
+              map={softDot}
+              color="#e6f0ff"
+              transparent
+              opacity={0.14 * opacity}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+              depthTest={false}
+              toneMapped={false}
+            />
+          </mesh>
+        </>
       )}
     </group>
   )
