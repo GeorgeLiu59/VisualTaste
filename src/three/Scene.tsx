@@ -245,7 +245,7 @@ export function Scene() {
       </Environment>
 
       <EffectComposer enableNormalPass={false}>
-        <DepthOfField target={focusVec} focalLength={0.008} bokehScale={0.9} height={480} />
+        <DepthOfField target={focusVec} focalLength={0.012} bokehScale={0.55} height={480} />
         <Bloom
           ref={bloomRef as never}
           mipmapBlur
@@ -260,7 +260,7 @@ export function Scene() {
           radialModulation={false}
           modulationOffset={0}
         />
-        <Vignette eskil={false} offset={0.32} darkness={0.82} />
+        <Vignette eskil={false} offset={0.38} darkness={0.6} />
         <Noise premultiply blendFunction={BlendFunction.OVERLAY} opacity={0.045} />
       </EffectComposer>
     </Canvas>

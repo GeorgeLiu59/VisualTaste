@@ -118,10 +118,11 @@ function Tile({
 
     const lift = layout.x + Math.sin(t * 0.5 + layout.sway) * radius * 0.012
     const rise = layout.y + Math.cos(t * 0.45 + layout.bob) * radius * 0.012
-    // push tiles toward the camera, in FRONT of the bright glass core, so they
-    // read against the clearer near-surface rather than the luminous center.
-    // Hovered tiles ease further forward to sit on top of the cluster.
-    const depth = (isHovered ? 0.78 : 0.42) * radius
+    // Keep tiles right at the lens CENTER — that's where the DepthOfField focus
+    // plane sits, so they stay crisp (out-of-focus tiles read as dim/muddy). The
+    // glass body + glow are already dialed clear, so there's no bright center to
+    // avoid. Hovered tiles ease slightly forward to lift above the cluster.
+    const depth = (isHovered ? 0.35 : 0.06) * radius
 
     out.current
       .set(0, 0, 0)

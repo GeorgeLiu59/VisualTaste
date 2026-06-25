@@ -310,9 +310,9 @@ export function Lens({
       // lens + anchors (tilePresence 0) keep their natural tint.
       const clear = clamp(tilePresence)
       if (clear > 0.001) {
-        WHITE.setRGB(0.97, 0.98, 0.99)
-        mtmRef.current.color.lerp(WHITE, clear * 0.92)
-        mtmRef.current.attenuationColor.lerp(WHITE, clear * 0.92)
+        WHITE.setRGB(1, 1, 1)
+        mtmRef.current.color.lerp(WHITE, clear)
+        mtmRef.current.attenuationColor.lerp(WHITE, clear)
       }
     }
     ;(rimMat.uniforms.uColor.value as THREE.Color).lerp(accentTarget, k)
@@ -356,15 +356,15 @@ export function Lens({
             ref={mtmRef as never}
             samples={8}
             resolution={512}
-            thickness={0.05}
+            thickness={0.04}
             roughness={0.0}
             anisotropicBlur={0.0}
-            chromaticAberration={0.002}
-            distortion={0.004}
-            distortionScale={0.02}
+            chromaticAberration={0.0}
+            distortion={0.0}
+            distortionScale={0.0}
             temporalDistortion={0.0}
-            ior={1.02}
-            attenuationDistance={80}
+            ior={1.0}
+            attenuationDistance={200}
             transmission={1}
             clearcoat={0.5}
             clearcoatRoughness={0.06}
