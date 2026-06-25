@@ -18,10 +18,8 @@ import {
   tarantinoProfile,
   nolanAssets,
   tarantinoAssets,
-  type Vec3,
 } from '../data/tasteData'
 import {
-  computeSimilarity,
   deriveUserProfile,
   isTarantinoLike,
   toWorld,
@@ -29,23 +27,11 @@ import {
 import { useTasteStore } from '../store/tasteStore'
 import { Lens } from './Lens'
 import { ProfileAttachments } from './ProfileAttachments'
-import { OverlapField } from './OverlapField'
 import { UnfoldView } from './UnfoldView'
 import { AxisLabels } from './AxisLabels'
 import { CameraRig } from './CameraRig'
 import { AbsorbDirector } from './AbsorbDirector'
-import { ConstellationReveal } from './ConstellationReveal'
-
-const lerpTaste = (a: Vec3, b: Vec3, t: number): Vec3 => ({
-  x: a.x + (b.x - a.x) * t,
-  y: a.y + (b.y - a.y) * t,
-  z: a.z + (b.z - a.z) * t,
-})
-
-const OVERLAP_COLOR: Record<'nolan' | 'tarantino', string> = {
-  nolan: '#6f9fd6',
-  tarantino: '#f0703a',
-}
+import { AffinityLines } from './AffinityLines'
 
 function SceneContent() {
   const activeAssetIds = useTasteStore((s) => s.activeAssetIds)
@@ -64,17 +50,12 @@ function SceneContent() {
   // on absorb (the slow morph). Hover still lights things up (brightness below).
   const userWorld = toWorld(user.displayPosition)
 
-  // compare: glide the selected anchor partway toward the user (display pos)
-  const nolanTaste =
-    mode === 'compare' && compareTarget === 'nolan'
-      ? lerpTaste(nolanProfile.position, user.displayPosition, 0.5)
-      : nolanProfile.position
-  const tarantinoTaste =
-    mode === 'compare' && compareTarget === 'tarantino'
-      ? lerpTaste(tarantinoProfile.position, user.displayPosition, 0.5)
-      : tarantinoProfile.position
-  const nolanWorld = toWorld(nolanTaste)
-  const tarantinoWorld = toWorld(tarantinoTaste)
+  // Anchors stay at their fixed taste-space positions in compare mode — no
+  // glide toward the user (that "touch + aura" overlap was removed). Compare
+  // simply brings Nolan & Tarantino into view; per-asset affinity lines convey
+  // the relationship instead.
+  const nolanWorld = toWorld(nolanProfile.position)
+  const tarantinoWorld = toWorld(tarantinoProfile.position)
 
   const count = activeAssets.length
   const isUnfold = mode === 'unfold'
@@ -112,12 +93,6 @@ function SceneContent() {
           : '#9cc0ef'
 
   const userBrightness = (draggingAssetId ? 0.55 : 0) + (hoveredAssetId ? 0.15 : 0)
-  const anchorForOverlap = compareTarget === 'nolan' ? nolanWorld : tarantinoWorld
-  const compareSimilarity = computeSimilarity(
-    user,
-    compareTarget === 'nolan' ? nolanProfile : tarantinoProfile,
-  )
-
   return (
     <>
       <ambientLight intensity={0.4} />
@@ -167,6 +142,15 @@ function SceneContent() {
             containerRadius={tarantinoContainer}
             emphasis={compareTarget === 'tarantino' ? 0.9 : 0.62}
           />
+
+          {/* per-asset affinity lines from each user reference to the director
+              it most resembles (stronger = closer) */}
+          <AffinityLines
+            userWorld={userWorld}
+            assets={activeAssets}
+            nolanWorld={nolanWorld}
+            tarantinoWorld={tarantinoWorld}
+          />
         </>
       )}
 
@@ -196,20 +180,6 @@ function SceneContent() {
       )}
 
       <UnfoldView center={userWorld} assets={activeAssets} palette={user.palette} active={isUnfold} />
-
-      {showAnchors && (
-        <>
-          <OverlapField
-            userCenter={userWorld}
-            anchorCenter={anchorForOverlap}
-            color={OVERLAP_COLOR[compareTarget]}
-            active={mode === 'compare'}
-            similarity={compareSimilarity}
-          />
-          {/* the cross-space constellation reveal only reads against anchors */}
-          <ConstellationReveal />
-        </>
-      )}
 
       <CameraRig />
     </>
