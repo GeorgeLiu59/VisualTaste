@@ -232,6 +232,8 @@ export function Lens({
   const attenTarget = useMemo(() => new THREE.Color(), [])
   const accentTarget = useMemo(() => new THREE.Color(), [])
   const leanTint = useMemo(() => new THREE.Color(), [])
+  // scratch near-white used to wash the body tint clear when tiles are present
+  const WHITE = useMemo(() => new THREE.Color(), [])
   // scratch for the directional liquid-drop stretch (user lens only)
   const UP = useMemo(() => new THREE.Vector3(0, 1, 0), [])
   const stretchAxisVec = useMemo(() => new THREE.Vector3(0, 1, 0), [])
@@ -300,6 +302,18 @@ export function Lens({
     if (mtmRef.current) {
       mtmRef.current.color.lerp(tintTarget, k)
       mtmRef.current.attenuationColor.lerp(attenTarget, k)
+      // The body color MULTIPLIES the transmitted image — a dark palette tint
+      // (palette[4] is often near-black) turns the glass into a black filter and
+      // hides whatever sits behind it. When the lens holds tiles, wash the body
+      // + attenuation color toward near-white so the original images come
+      // through clean. Color identity still reads from the rim/core glow. Empty
+      // lens + anchors (tilePresence 0) keep their natural tint.
+      const clear = clamp(tilePresence)
+      if (clear > 0.001) {
+        WHITE.setRGB(0.94, 0.95, 0.97)
+        mtmRef.current.color.lerp(WHITE, clear * 0.85)
+        mtmRef.current.attenuationColor.lerp(WHITE, clear * 0.85)
+      }
     }
     ;(rimMat.uniforms.uColor.value as THREE.Color).lerp(accentTarget, k)
     ;(coreMat.uniforms.uColor.value as THREE.Color).lerp(accentTarget, k)
@@ -342,18 +356,18 @@ export function Lens({
             ref={mtmRef as never}
             samples={8}
             resolution={512}
-            thickness={0.22}
-            roughness={0.03}
-            anisotropicBlur={0.1}
-            chromaticAberration={0.02}
-            distortion={0.05}
-            distortionScale={0.15}
-            temporalDistortion={0.02}
-            ior={1.1}
-            attenuationDistance={14}
+            thickness={0.12}
+            roughness={0.02}
+            anisotropicBlur={0.04}
+            chromaticAberration={0.008}
+            distortion={0.015}
+            distortionScale={0.06}
+            temporalDistortion={0.0}
+            ior={1.06}
+            attenuationDistance={40}
             transmission={1}
-            clearcoat={0.7}
-            clearcoatRoughness={0.1}
+            clearcoat={0.6}
+            clearcoatRoughness={0.08}
             transparent
             opacity={opacity}
           />
