@@ -275,12 +275,11 @@ export function CurvedPanel({ asset, dir, arc, accent, emphasis = 1 }: CurvedPan
               textAlign="center"
               color="#e9e4ff"
               outlineWidth={0}
-              toneMapped={false}
+              fillOpacity={1}
               renderOrder={5}
               ref={(el) => {
                 textRef.current = el as unknown as { fillOpacity: number } | null
               }}
-              material-depthWrite={false}
             >
               {asset.label}
             </Text>
