@@ -1,20 +1,22 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Billboard, Text } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { damp } from '../lib/taste'
+import { getAsset } from '../data/tasteData'
 import { useChatStore, type ChatStage } from '../store/chatStore'
 import { moodSubsets, type MoodSubset } from '../data/chatData'
 import { Lens } from './Lens'
+import { ProfileAttachments } from './ProfileAttachments'
 import { softDot } from './softDot'
 
 // ---------------------------------------------------------------------------
 // Moodio "generate" beat. The user's lens cleaves into 4 mood-cluster
-// sub-bubbles that fly to the quadrants (splitting), then rotate + pulse for a
-// few seconds (generating — the visible thinking beat), then dissolve as each
-// reveals its image inside a glassy, glowing frame (revealed). Each quadrant is
-// labelled with its category + the taste components feeding it. All frame-driven
-// off chatStore — no React churn in the scene.
+// sub-bubbles that fly to the quadrants (splitting). Each sub-bubble carries
+// the actual references for its category (image / text / palette tiles, split
+// off from the original lens) and rotates + pulses (generating — the visible
+// thinking beat). Then each dissolves as it reveals its image inside a glassy,
+// glowing frame (revealed). Frame-driven off chatStore — no React churn.
 // ---------------------------------------------------------------------------
 
 type V3 = [number, number, number]
@@ -25,7 +27,9 @@ const DX = 7.0
 const DY = 4.6
 const GRID_Y = 1.0
 
-const BUBBLE_SCALE = 0.85
+// sub-bubble size while generating — big enough that its reference tiles read
+// at the (pulled-back) reveal framing.
+const BUBBLE_SCALE = 3.2
 
 // result image box (large — the bubble dissolves to just a glassy frame)
 const BOX_W = 10.0
@@ -77,6 +81,8 @@ function Entity({
   stage: ChatStage
 }) {
   const holder = useRef<THREE.Group>(null!)
+  const spinner = useRef<THREE.Group>(null!)
+  const memberAssets = useMemo(() => subset.members.map(getAsset), [subset])
 
   const split = stage !== 'idle'
   const revealed = stage === 'revealed'
@@ -85,46 +91,57 @@ function Entity({
   const lensScale = revealed ? 0.02 : split ? BUBBLE_SCALE : 0.04
 
   useFrame((state, dt) => {
-    const h = holder.current
-    if (!h) return
     const cs = useChatStore.getState()
     // staggered release: each bubble peels off to its quadrant a beat after the
     // previous one (reads as a fanning split rather than four moving as one).
     const elapsed = cs.submittedAt != null ? performance.now() - cs.submittedAt : 0
     const released = cs.stage !== 'idle' && elapsed >= subset.order * 130
     const target = released ? quadrant(subset.order, userWorld) : userWorld
-    h.position.x = damp(h.position.x, target[0], 2.4, dt)
-    h.position.y = damp(h.position.y, target[1], 2.4, dt)
-    h.position.z = damp(h.position.z, target[2], 2.4, dt)
+    const h = holder.current
+    if (h) {
+      h.position.x = damp(h.position.x, target[0], 2.4, dt)
+      h.position.y = damp(h.position.y, target[1], 2.4, dt)
+      h.position.z = damp(h.position.z, target[2], 2.4, dt)
+    }
 
-    // While "generating": each sub-bubble slowly rotates and pulses (the visible
-    // thinking beat). The image pane + labels are billboarded, so holder
-    // rotation only spins the glass bubble, never the readable content.
-    const working = cs.stage === 'splitting' || cs.stage === 'generating'
-    if (working) {
-      h.rotation.y += dt * (1.0 + subset.order * 0.12)
-      const p = 1 + Math.sin(state.clock.elapsedTime * 3.2 + subset.order * 1.3) * 0.08
-      h.scale.setScalar(p)
-    } else {
-      h.rotation.y = damp(h.rotation.y, 0, 4, dt)
-      h.scale.setScalar(damp(h.scale.x, 1, 6, dt))
+    // While "generating": only the glass bubble spins + pulses (its reference
+    // tiles + labels stay billboarded and readable — they live in `holder`, not
+    // the spinning `spinner`).
+    const sp = spinner.current
+    if (sp) {
+      const working = cs.stage === 'splitting' || cs.stage === 'generating'
+      if (working) {
+        sp.rotation.y += dt * (1.0 + subset.order * 0.12)
+        sp.scale.setScalar(1 + Math.sin(state.clock.elapsedTime * 3.2 + subset.order * 1.3) * 0.08)
+      } else {
+        sp.rotation.y = damp(sp.rotation.y, 0, 4, dt)
+        sp.scale.setScalar(damp(sp.scale.x, 1, 6, dt))
+      }
     }
   })
 
   return (
     <group ref={holder} position={userWorld}>
-      <Lens
-        position={[0, 0, 0]}
-        palette={subset.palette}
-        accent={subset.accent}
-        scale={lensScale}
-        irregular={0.035}
-        geometrySeed={subset.order + 10}
-        showParticles={split && !revealed}
-        opacity={revealed ? 0 : 1}
-        rippleSeed={pulse}
-        rimScale={0.85}
-      />
+      <group ref={spinner}>
+        <Lens
+          position={[0, 0, 0]}
+          palette={subset.palette}
+          accent={subset.accent}
+          scale={lensScale}
+          irregular={0.035}
+          geometrySeed={subset.order + 10}
+          showParticles={split && !revealed}
+          opacity={revealed ? 0 : 1}
+          rippleSeed={pulse}
+          rimScale={0.85}
+          tilePresence={split && !revealed ? 1 : 0}
+        />
+      </group>
+
+      {/* the category's actual references, split off into this bubble */}
+      {split && !revealed && (
+        <ProfileAttachments center={[0, 0, 0]} radius={BUBBLE_SCALE * 0.9} assets={memberAssets} emphasis={1} />
+      )}
 
       <MoodPane
         src={subset.resultSrc}
@@ -133,11 +150,11 @@ function Entity({
         revealed={revealed}
       />
 
-      {/* category + the taste components feeding this direction */}
+      {/* category title (the references themselves are shown by the tiles) */}
       {split && (
         <Billboard>
           <Text
-            position={[0, BOX_H / 2 + 1.15, 0]}
+            position={[0, BOX_H / 2 + 0.75, 0]}
             fontSize={0.5}
             color="#eef4ff"
             anchorX="center"
@@ -148,20 +165,6 @@ function Entity({
             renderOrder={20}
           >
             {subset.label}
-          </Text>
-          <Text
-            position={[0, BOX_H / 2 + 0.5, 0]}
-            fontSize={0.32}
-            color="#a6b8cc"
-            anchorX="center"
-            anchorY="middle"
-            maxWidth={BOX_W}
-            textAlign="center"
-            fillOpacity={0.85}
-            material-depthTest={false}
-            renderOrder={20}
-          >
-            {subset.caption}
           </Text>
         </Billboard>
       )}
