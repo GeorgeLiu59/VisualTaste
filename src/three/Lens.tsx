@@ -100,7 +100,17 @@ function makeGlowMaterial(color: string, frag: string, power: number) {
 // Inner colored particles ("liquid color diffusion")
 // ---------------------------------------------------------------------------
 
-function InnerParticles({ palette, radius = 0.5, count = 38 }: { palette: string[]; radius?: number; count?: number }) {
+function InnerParticles({
+  palette,
+  radius = 0.5,
+  count = 38,
+  opacity = 0.4,
+}: {
+  palette: string[]
+  radius?: number
+  count?: number
+  opacity?: number
+}) {
   const ref = useRef<THREE.Points>(null!)
 
   const geometry = useMemo(() => {
@@ -144,7 +154,7 @@ function InnerParticles({ palette, radius = 0.5, count = 38 }: { palette: string
         map={softDot}
         vertexColors
         transparent
-        opacity={0.4}
+        opacity={opacity}
         depthWrite={false}
         blending={THREE.AdditiveBlending}
         sizeAttenuation
@@ -303,19 +313,22 @@ export function Lens({
         if (mtmRef.current) mtmRef.current.color.lerp(leanTint, lm * 0.15)
       }
     }
-    // When the lens holds reference tiles, dial the silhouette rim down so its
-    // additive glow stops washing over the tiles; the core glow (behind the
-    // tiles) carries the luminous body instead. Empty lens + anchors keep 1.7.
-    const rimDial = (1 - 0.3 * clamp(tilePresence)) * rimScale
+    // When the lens holds reference tiles, dial BOTH glows down so they stop
+    // washing over / silhouetting through the tiles. The rim (edge) backs off
+    // most; the core (center, directly behind the tiles) backs off even harder
+    // so the tiles read against near-clear glass. Empty lens + anchors keep full.
+    const tp = clamp(tilePresence)
+    const rimDial = (1 - 0.55 * tp) * rimScale
     rimMat.uniforms.uIntensity.value = damp(
       rimMat.uniforms.uIntensity.value,
       (1.7 * rimDial + brightness * 1.9 + impulse.current * 1.6 * rimDial) * opacity,
       6,
       dt,
     )
+    const coreDial = 1 - 0.8 * tp
     coreMat.uniforms.uIntensity.value = damp(
       coreMat.uniforms.uIntensity.value,
-      (0.16 + brightness * 0.45 + impulse.current * 0.4) * opacity,
+      (0.16 * coreDial + brightness * 0.45 + impulse.current * 0.4) * opacity,
       6,
       dt,
     )
@@ -329,18 +342,18 @@ export function Lens({
             ref={mtmRef as never}
             samples={8}
             resolution={512}
-            thickness={0.45}
-            roughness={0.06}
-            anisotropicBlur={0.2}
-            chromaticAberration={0.035}
-            distortion={0.12}
-            distortionScale={0.24}
-            temporalDistortion={0.05}
-            ior={1.16}
-            attenuationDistance={6.5}
+            thickness={0.22}
+            roughness={0.03}
+            anisotropicBlur={0.1}
+            chromaticAberration={0.02}
+            distortion={0.05}
+            distortionScale={0.15}
+            temporalDistortion={0.02}
+            ior={1.1}
+            attenuationDistance={14}
             transmission={1}
-            clearcoat={0.85}
-            clearcoatRoughness={0.14}
+            clearcoat={0.7}
+            clearcoatRoughness={0.1}
             transparent
             opacity={opacity}
           />
@@ -354,7 +367,7 @@ export function Lens({
         <mesh geometry={geometry} scale={1.035} renderOrder={5}>
           <primitive object={rimMat} attach="material" />
         </mesh>
-        {showParticles && <InnerParticles palette={palette} />}
+        {showParticles && <InnerParticles palette={palette} opacity={0.4 * (1 - 0.7 * clamp(tilePresence))} />}
       </group>
     </group>
   )

@@ -89,16 +89,17 @@ function Tile({
     const n = Math.max(total, 1)
     const rNorm = n === 1 ? 0 : Math.sqrt((index + 0.5) / n)
     const ang = index * GOLDEN
-    // disc radius fraction of the bubble — kept well inside the silhouette
-    const discR = radius * 0.5
+    // disc radius fraction of the bubble — kept inside the silhouette
+    const discR = radius * 0.58
     const x = Math.cos(ang) * rNorm * discR
     const y = Math.sin(ang) * rNorm * discR
     return { x, y, bob: index * 1.7, sway: index * 0.9 }
   }, [index, total, radius])
 
   const [unitW, unitH] = assetSize(asset)
-  // tile world size: shrink as the cluster grows so they don't overlap or spill
-  const tileScale = radius * (0.46 - Math.min(total, 6) * 0.028)
+  // tile world size: bigger now that the glass is clearer; shrink as the cluster
+  // grows so they don't overlap or spill the silhouette.
+  const tileScale = radius * (0.62 - Math.min(total, 6) * 0.03)
 
   const camX = useRef(new THREE.Vector3())
   const camY = useRef(new THREE.Vector3())
@@ -117,9 +118,10 @@ function Tile({
 
     const lift = layout.x + Math.sin(t * 0.5 + layout.sway) * radius * 0.012
     const rise = layout.y + Math.cos(t * 0.45 + layout.bob) * radius * 0.012
-    // sit at the lens CENTER depth (no forward push) — only hovered tiles ease
-    // a little toward the camera so they read on top without poking the others
-    const depth = isHovered ? radius * 0.5 : 0
+    // push tiles toward the camera, in FRONT of the bright glass core, so they
+    // read against the clearer near-surface rather than the luminous center.
+    // Hovered tiles ease further forward to sit on top of the cluster.
+    const depth = (isHovered ? 0.78 : 0.42) * radius
 
     out.current
       .set(0, 0, 0)

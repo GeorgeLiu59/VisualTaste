@@ -250,7 +250,7 @@ export function Scene() {
           ref={bloomRef as never}
           mipmapBlur
           intensity={0.95}
-          luminanceThreshold={0.2}
+          luminanceThreshold={0.28}
           luminanceSmoothing={0.5}
           radius={0.72}
         />
