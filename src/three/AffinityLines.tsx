@@ -81,33 +81,69 @@ export function AffinityLines({ userWorld, assets, nolanWorld, tarantinoWorld }:
   )
 }
 
-/** One thin solid glowing string with a soft radiate shimmer. */
+type LineMat = THREE.Material & { linewidth?: number; opacity: number; blending: THREE.Blending; needsUpdate: boolean }
+
+/**
+ * One ethereal string: a hair-thin bright core + a soft wide faint halo, both
+ * additively blended so they read as glowing light rather than drawn ink, with
+ * a slow shimmer so they breathe. Bloom carries the radiance.
+ */
 function AffinityString({ start, end, mid, color, strength }: { start: V3; end: V3; mid: V3; color: string; strength: number }) {
-  const ref = useRef<any>(null)
+  const core = useRef<any>(null)
+  const halo = useRef<any>(null)
   const phase = useMemo(() => Math.random() * Math.PI * 2, [])
+  const setup = useRef(false)
 
   useFrame((state) => {
-    const line = ref.current
-    if (!line) return
-    const mat = line.material as THREE.Material & { linewidth?: number; opacity: number }
+    const c = core.current
+    const h = halo.current
+    if (!c || !h) return
+    const cm = c.material as LineMat
+    const hm = h.material as LineMat
+    // additive once so overlapping strings glow brighter (light, not paint)
+    if (!setup.current) {
+      cm.blending = THREE.AdditiveBlending
+      hm.blending = THREE.AdditiveBlending
+      cm.needsUpdate = true
+      hm.needsUpdate = true
+      setup.current = true
+    }
     // a slow breath so the strings feel alive (radiating), not static
-    const shimmer = 0.85 + 0.15 * Math.sin(state.clock.elapsedTime * 1.4 + phase)
-    if (mat.linewidth !== undefined) mat.linewidth = 0.8 + strength * 2.2
-    mat.opacity = (0.2 + strength * 0.7) * shimmer
+    const shimmer = 0.8 + 0.2 * Math.sin(state.clock.elapsedTime * 1.3 + phase)
+    if (cm.linewidth !== undefined) cm.linewidth = 0.5 + strength * 0.8
+    if (hm.linewidth !== undefined) hm.linewidth = 2.2 + strength * 3.4
+    cm.opacity = (0.16 + strength * 0.5) * shimmer
+    hm.opacity = (0.04 + strength * 0.12) * shimmer
   })
 
   return (
-    <QuadraticBezierLine
-      ref={ref}
-      start={start}
-      end={end}
-      mid={mid}
-      color={color}
-      lineWidth={1}
-      transparent
-      opacity={0.6}
-      depthWrite={false}
-      toneMapped={false}
-    />
+    <group>
+      {/* soft wide halo */}
+      <QuadraticBezierLine
+        ref={halo}
+        start={start}
+        end={end}
+        mid={mid}
+        color={color}
+        lineWidth={3}
+        transparent
+        opacity={0.08}
+        depthWrite={false}
+        toneMapped={false}
+      />
+      {/* hair-thin bright core */}
+      <QuadraticBezierLine
+        ref={core}
+        start={start}
+        end={end}
+        mid={mid}
+        color={color}
+        lineWidth={1}
+        transparent
+        opacity={0.4}
+        depthWrite={false}
+        toneMapped={false}
+      />
+    </group>
   )
 }
