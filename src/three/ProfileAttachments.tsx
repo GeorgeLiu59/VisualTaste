@@ -118,13 +118,17 @@ function Tile({
     const isHovered = hovered === asset.id
     const dimmed = hovered != null && !isHovered && getAsset(hovered).owner === asset.owner
 
-    const lift = layout.x + Math.sin(t * 0.5 + layout.sway) * radius * 0.012
-    const rise = layout.y + Math.cos(t * 0.45 + layout.bob) * radius * 0.012
-    // Keep tiles right at the lens CENTER — that's where the DepthOfField focus
+    // Gentle float so the cluster feels alive rather than pinned in place —
+    // small amplitude + per-tile phase so they drift independently.
+    const amp = radius * 0.05
+    const lift = layout.x + Math.sin(t * 0.55 + layout.sway) * amp
+    const rise = layout.y + Math.cos(t * 0.43 + layout.bob) * amp
+    // Keep tiles near the lens CENTER — that's where the DepthOfField focus
     // plane sits, so they stay crisp (out-of-focus tiles read as dim/muddy). The
     // glass body + glow are already dialed clear, so there's no bright center to
-    // avoid. Hovered tiles ease slightly forward to lift above the cluster.
-    const depth = (isHovered ? 0.35 : 0.06) * radius
+    // avoid. Hovered tiles ease slightly forward to lift above the cluster; a
+    // slow in/out bob keeps the depth from feeling frozen.
+    const depth = (isHovered ? 0.35 : 0.06) * radius + Math.sin(t * 0.35 + layout.bob) * radius * 0.03
 
     out.current
       .set(0, 0, 0)

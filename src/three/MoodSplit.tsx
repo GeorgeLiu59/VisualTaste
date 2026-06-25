@@ -140,7 +140,7 @@ function Entity({
         <ProfileAttachments center={[0, 0, 0]} radius={BUBBLE_SCALE * 0.85} assets={memberAssets} emphasis={1} />
       )}
 
-      <MoodPane src={subset.resultSrc} fallbackSrc={subset.fallbackSrc} revealed={revealed} />
+      <MoodPane src={subset.resultSrc} fallbackSrc={subset.fallbackSrc} revealed={revealed} phase={subset.order * 1.7} />
     </group>
   )
 }
@@ -151,7 +151,17 @@ function Entity({
  * reveal (opacity + a slight scale settle). Loads its texture imperatively,
  * falling back to an existing still until the staged result image exists.
  */
-function MoodPane({ src, fallbackSrc, revealed }: { src: string; fallbackSrc: string; revealed: boolean }) {
+function MoodPane({
+  src,
+  fallbackSrc,
+  revealed,
+  phase,
+}: {
+  src: string
+  fallbackSrc: string
+  revealed: boolean
+  phase: number
+}) {
   const [tex, setTex] = useState<THREE.Texture | null>(null)
   const grp = useRef<THREE.Group>(null!)
   const imgMat = useRef<THREE.MeshBasicMaterial>(null!)
@@ -197,6 +207,10 @@ function MoodPane({ src, fallbackSrc, revealed }: { src: string; fallbackSrc: st
     if (grp.current) {
       const s = damp(grp.current.scale.x, revealed ? 1 : 1.06, 5, dt)
       grp.current.scale.setScalar(s)
+      // gentle float once revealed so the panes aren't dead-static
+      const ct = state.clock.elapsedTime
+      grp.current.position.x = Math.sin(ct * 0.4 + phase) * 0.14 * t
+      grp.current.position.y = Math.cos(ct * 0.33 + phase * 1.3) * 0.11 * t
     }
     if (sheen.current) {
       const cam = state.camera.position
