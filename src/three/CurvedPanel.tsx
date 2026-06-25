@@ -98,9 +98,11 @@ function useCachedTexture(src: string | undefined, maxAniso: number): THREE.Text
   return tex
 }
 
-const R_FACE = 1.05
-const R_BACK = 1.035
-const R_MAT = 1.03
+// Nestled just under the mean glass surface (≈1.0) so the panels follow the
+// contour from within the skin rather than floating above it.
+const R_FACE = 0.99
+const R_BACK = 0.978
+const R_MAT = 0.97
 
 export interface CurvedPanelProps {
   asset: Asset
@@ -142,13 +144,29 @@ export function CurvedPanel({ asset, dir, arc, accent, emphasis = 1 }: CurvedPan
   const textRef = useRef<{ fillOpacity: number } | null>(null)
   const swatchMats = useRef<THREE.MeshBasicMaterial[]>([])
 
+  // Bind the texture imperatively once it loads. A meshBasicMaterial first
+  // compiled with no `map` builds a shader WITHOUT texture sampling; assigning
+  // map via the JSX prop afterward won't recompile it (→ the all-white bug).
+  // Setting .map + .needsUpdate forces the recompile so the image actually shows.
+  useEffect(() => {
+    const m = faceMat.current
+    if (!m || asset.type !== 'image') return
+    m.map = tex ?? null
+    m.color.set(tex ? '#ffffff' : '#0a0e16')
+    m.needsUpdate = true
+  }, [tex, asset.type])
+
   const faceFade = useRef(0) // eased image fade-in
   const worldNormal = useRef(new THREE.Vector3())
+  // small per-panel drift phases so they shimmer within the skin (not static)
+  const driftPhase = useMemo(() => Math.random() * Math.PI * 2, [])
   const panelPos = useRef(new THREE.Vector3())
   const viewDir = useRef(new THREE.Vector3())
   const tmpQuat = useRef(new THREE.Quaternion())
   const tmpScale = useRef(new THREE.Vector3())
   const tmpPos = useRef(new THREE.Vector3())
+  const drift = useRef(new THREE.Quaternion())
+  const tmpDrift = useRef(new THREE.Quaternion())
 
   useFrame((state, dt) => {
     const g = root.current
@@ -187,6 +205,17 @@ export function CurvedPanel({ asset, dir, arc, accent, emphasis = 1 }: CurvedPan
     if (textRef.current) textRef.current.fillOpacity = o
     for (const m of swatchMats.current) m.opacity = o
 
+    // gentle drift: glide the panel a hair across the surface (small tangential
+    // sway) + a tiny radial breath, so panels feel suspended in the skin and
+    // alive, not pinned. Applied as a tiny extra rotation on top of `quat`.
+    const t = state.clock.elapsedTime
+    const swayX = Math.sin(t * 0.32 + driftPhase) * 0.045
+    const swayY = Math.cos(t * 0.27 + driftPhase * 1.4) * 0.045
+    drift.current
+      .setFromAxisAngle(X_AXIS, swayY)
+      .multiply(tmpDrift.current.setFromAxisAngle(Y_AXIS, swayX))
+    g.quaternion.copy(quat).multiply(drift.current)
+
     // hover lift (uniform scale grows the panel along a larger sphere → reads
     // as lifting toward the viewer) + counter-scale the absorb prolate stretch
     const inv = (v: number) => clamp(1 / (Math.abs(v) < 1e-4 ? 1 : v), 0.72, 1.4)
@@ -197,7 +226,9 @@ export function CurvedPanel({ asset, dir, arc, accent, emphasis = 1 }: CurvedPan
       // liquid-drop) so images aren't mangled — using local scale, not world
       // (world scale also carries the lens's overall size, which should apply).
       const ls = (g.parent as THREE.Group).scale
-      content.current.scale.set(inv(ls.x), inv(ls.y), inv(ls.z))
+      // tiny radial breath in/out of the skin
+      const breath = 1 + Math.sin(t * 0.5 + driftPhase) * 0.012
+      content.current.scale.set(inv(ls.x) * breath, inv(ls.y) * breath, inv(ls.z) * breath)
     }
   })
 
@@ -240,10 +271,11 @@ export function CurvedPanel({ asset, dir, arc, accent, emphasis = 1 }: CurvedPan
             }}
             onPointerOut={() => setHover(null)}
           >
+            {/* map + color set imperatively in the effect above (avoids the
+                no-recompile all-white bug); start dark until the image binds */}
             <meshBasicMaterial
               ref={faceMat}
-              map={tex ?? undefined}
-              color={tex ? '#ffffff' : '#0a0e16'}
+              color="#0a0e16"
               transparent
               opacity={0}
               depthWrite={false}
