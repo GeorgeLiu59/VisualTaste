@@ -1,4 +1,4 @@
-# Taste Lens
+# Visual Taste
 
 A spatial, almost text-free demo that visualizes a multimodal **taste profile** as a living glass object shaped by film references.
 

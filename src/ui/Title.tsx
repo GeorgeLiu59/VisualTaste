@@ -10,7 +10,7 @@ export function Title() {
     >
       <div className="flex items-center gap-2.5">
         <span className="h-[7px] w-[7px] rounded-full bg-white/80 shadow-[0_0_12px_2px_rgba(255,255,255,0.5)]" />
-        <h1 className="font-serif text-[20px] leading-none tracking-tight text-white/90">Taste Lens</h1>
+        <h1 className="font-serif text-[20px] leading-none tracking-tight text-white/90">Visual Taste</h1>
       </div>
       <p className="mt-2 pl-[17px] text-[9.5px] uppercase tracking-[0.32em] text-white/35">
         a multimodal taste profile

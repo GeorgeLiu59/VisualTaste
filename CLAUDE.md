@@ -6,7 +6,7 @@ Guidance for AI agents (and humans) working in this repo. Read this first.
 
 ## What this is
 
-**Taste Lens** — a spatial, nearly text-free WebGL experience that visualizes a
+**Visual Taste** — a spatial, nearly text-free WebGL experience that visualizes a
 person's **multimodal film taste profile** as a living glass object. Three
 translucent "taste lenses" float in a dark studio void:
 

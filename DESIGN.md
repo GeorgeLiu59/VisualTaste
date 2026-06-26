@@ -1,4 +1,4 @@
-# Design Doc: Taste Lens Demo
+# Design Doc: Visual Taste Demo
 
 ## 0. Concept
 
@@ -48,7 +48,7 @@ The experience should feel calm, expensive, fluid, and inevitable.
 
 # 2. Visual Metaphor
 
-## Taste Lens
+## Visual Taste
 
 A taste profile is represented as a floating glass lens.
 
@@ -106,7 +106,7 @@ A floating reference tray containing available assets.
 
 Tiny title:
 
-**Taste Lens**
+**Visual Taste**
 
 ### Top Right
 
@@ -795,7 +795,7 @@ Use very little text.
 
 ## Visible Text Allowed
 
-* Taste Lens
+* Visual Taste
 * You
 * Nolan
 * Tarantino
@@ -895,7 +895,7 @@ Suggested durations:
 * Tailwind for minimal UI
 * postprocessing for bloom / depth-of-field if using dark theme
 
-## Taste Lens Rendering
+## Visual Taste Rendering
 
 ### MVP Method
 
@@ -1064,7 +1064,7 @@ Initial screen:
 * Nolan lens to upper-left
 * Tarantino lens to lower-right
 * Reference tray at bottom
-* Minimal title: Taste Lens
+* Minimal title: Visual Taste
 
 No explanation.
 
@@ -1225,7 +1225,7 @@ Use only these text moments.
 
 Opening:
 
-**Taste Lens**
+**Visual Taste**
 
 During interaction:
 
